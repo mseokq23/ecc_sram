@@ -15,10 +15,10 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 |---|---|
 | 8T 셀 회로 모의 (PDK 260820 모델) | 45조건 쓰기·읽기 통과, 보존 전압 TT 0.37 V, 읽기 Vmin(VDDA) TT 1.42 V |
 | 8T 셀·15×8 어레이 레이아웃 | Magic DRC 0, KLayout DRC 0, LVS 일치, Calibre 전용 73규칙·금속 규칙·안테나 0 |
-| 어레이 후모의 (추출 C × 1.5) | 5 코너 + VDDA 2 V, 240비트씩 오류 0 |
+| 컬럼 회로 레이아웃(프리차지·keeper·센스·VDDA 쓰기 드라이버), 어레이와 합친 SRAM 매크로 | Magic DRC 0, KLayout DRC 0, LVS 일치, 추가 규칙 검사 0 |
+| 어레이·매크로 후모의 (추출 C × 1.5, 매크로는 핀에서 구동) | 5 코너 + VDDA 2 V, 240비트씩 오류 0 |
 | 제어 블록 ecc_fi_ctrl | RTL·게이트·배치 후 넷리스트 시험 통과, 평면 LVS 일치, DRC 0, 매크로 고정 |
-| 컬럼 회로(프리차지·keeper·센스·쓰기 드라이버) 레이아웃 | 다음 단계 |
-| VDDA 디커플링, 패드 링, 칩 조립·칩 검사 | 그다음 |
+| VDDA 디커플링, 패드 링, 칩 조립·칩 검사 | 다음 단계 |
 
 ## 구성
 
@@ -36,8 +36,9 @@ scripts/
   mychip_gds_check.py     제출 GDS 자체 검사(층, 격자, 스크라이브 레인, 패드 개구 …)
 designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
+  gen/colper.py           어레이 아래 컬럼 회로, 어레이와 합친 SRAM 매크로(sram_macro)
   sim/cell/               셀·컬럼 트랜지스터 수준 모의(코너, 보존 전압, 읽기 Vmin, 보존 시간)
-  sim/post/array_post.py  그린 어레이를 추출해 컬럼 회로와 함께 쓰기·읽기 모의
+  sim/post/array_post.py  그린 어레이(또는 --macro: 매크로 전체)를 추출해 쓰기·읽기 모의
   ctrl/                   제어 블록: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정
   ctrl/macro/             고정한 제어 블록(GDS, 넷리스트, 핀 좌표)
 docs/                     사양, 검증 기록
@@ -72,7 +73,8 @@ source scripts/etri050-env.sh
 
 # 셀·어레이 생성 + Magic DRC, KLayout DRC(킷 덱), LVS
 python3 designs/etri050/gen/sram8t.py all --check
-bash scripts/extra_checks.sh designs/etri050/sram/build/sram_array.gds
+python3 designs/etri050/gen/colper.py --check            # 어레이 + 컬럼 회로 = sram_macro
+bash scripts/extra_checks.sh designs/etri050/sram/build/sram_array.gds designs/etri050/sram/build/sram_macro.gds
 
 # 셀 모의 (결과는 designs/etri050/sim/cell/build)
 python3 designs/etri050/sim/cell/sweep_basic.py            # 45조건 쓰기·읽기·트립·keeper
@@ -81,8 +83,9 @@ python3 designs/etri050/sim/cell/drv_butterfly.py nominal  # 유지 SNM, 보존 
 python3 designs/etri050/sim/cell/drv_mc_small.py TT 27 200 12 15   # 보존 전압 퍼짐(Vt 불일치 가정)
 python3 designs/etri050/sim/cell/retention_time.py         # VDDA를 낮춘 채 버티는 시간
 
-# 어레이 후모의
+# 어레이 후모의(컬럼 회로는 회로도), 매크로 후모의(그린 컬럼 회로)
 python3 designs/etri050/sim/post/array_post.py
+python3 designs/etri050/sim/post/array_post.py --macro
 
 # 제어 블록
 make -C designs/etri050/ctrl sim synth gatesim   # RTL, 합성, 게이트 수준

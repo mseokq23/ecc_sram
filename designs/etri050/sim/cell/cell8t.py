@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """8T SRAM bit cell + column checks with the official PDK model (05cmos_mosfet_corner.lib, nmos4/pmos4).
 
-Sizes on the drawable grid of the flow (W >= 1.8 um, L >= 0.6 um, 0.3 um steps), as drawn by gen/sram8t.py:
+Sizes on the drawable grid of the flow (W >= 1.8 um, L >= 0.6 um, 0.3 um steps), as drawn by gen/sram8t.py
+and gen/colper.py (column circuits: two fingers per inverter, totals given):
   PU 1.8/0.6, PD 3.0/0.6, PG 1.8/0.6, RD1/RD2 3.0/0.6,
-  precharge 6.0/0.6, keeper 1.8/1.8, sense inverter P 4.5/0.6 N 1.8/0.6,
-  write drivers (VDDA, always on): WDB = not WD (P 3.6 N 1.8), BL = not WDB and BLB = not WD (P 12.0 N 6.0).
+  precharge 6.0/0.6, keeper 1.8/1.8, sense and output inverters P 9.0/0.6 N 3.6/0.6,
+  write drivers (VDDA, always on): BLB = not WD, BL = not BLB (P 12.0 N 6.0 each).
 Models: designs/etri050/sim/models (bash scripts/get-models.sh). Each run prints 'RES key=value' lines.
 """
 import os, re, subprocess, sys, itertools, json
@@ -16,8 +17,8 @@ BUILD = os.path.join(HERE, "build")
 os.makedirs(BUILD, exist_ok=True)
 
 SZ = dict(PU=(1.8, 0.6), PD=(3.0, 0.6), PG=(1.8, 0.6), RD1=(3.0, 0.6), RD2=(3.0, 0.6),
-          PRE=(6.0, 0.6), KEEP=(1.8, 1.8), SAP=(4.5, 0.6), SAN=(1.8, 0.6),
-          WDP=(12.0, 0.6), WDN=(6.0, 0.6), WIP=(3.6, 0.6), WIN=(1.8, 0.6))
+          PRE=(6.0, 0.6), KEEP=(1.8, 1.8), SAP=(9.0, 0.6), SAN=(3.6, 0.6), OP=(9.0, 0.6), ON=(3.6, 0.6),
+          WDP=(12.0, 0.6), WDN=(6.0, 0.6))
 
 
 def mos(name, d, g, s, b, typ, w, l, m=1):
@@ -75,19 +76,17 @@ def run(name, deck):
 
 # ---------------------------------------------------------------- write: delay and final state
 def write_deck(corner, temp, vdd, vdda=None, sz=SZ):
-    """Write 0 into a cell holding 1: WD = 0 -> BL = 0, BLB = VDDA (drivers in the VDDA domain)."""
+    """Write 0 into a cell holding 1: WD = 0 -> BLB = VDDA, BL = not BLB = 0 (drivers in the VDDA domain)."""
     vdda = vdd if vdda is None else vdda
-    wdp, wdn, wip, win = sz["WDP"], sz["WDN"], sz["WIP"], sz["WIN"]
+    wdp, wdn = sz["WDP"], sz["WDN"]
     return header(corner, temp) + f"""
 VDD vdd 0 {vdd}
 VDDA vdda 0 {vdda}
 VWD wd 0 0
-{mos('wip', 'wdb', 'wd', 'vdda', 'vdda', 'pmos4', *wip)}
-{mos('win', 'wdb', 'wd', 0, 0, 'nmos4', *win)}
-{mos('wbp', 'bl', 'wdb', 'vdda', 'vdda', 'pmos4', *wdp)}
-{mos('wbn', 'bl', 'wdb', 0, 0, 'nmos4', *wdn)}
 {mos('wcp', 'blb', 'wd', 'vdda', 'vdda', 'pmos4', *wdp)}
 {mos('wcn', 'blb', 'wd', 0, 0, 'nmos4', *wdn)}
+{mos('wbp', 'bl', 'blb', 'vdda', 'vdda', 'pmos4', *wdp)}
+{mos('wbn', 'bl', 'blb', 0, 0, 'nmos4', *wdn)}
 CBL bl 0 25f
 CBLB blb 0 25f
 VWWL wwl 0 PULSE(0 {vdd} 5n 1n 1n 20n 100n)
@@ -158,8 +157,8 @@ VBLB blb 0 {vdda}
 {keep}
 {mos('sap', 'saout', 'rbl', 'vdd', 'vdd', 'pmos4', *sz['SAP'])}
 {mos('san', 'saout', 'rbl', 0, 0, 'nmos4', *sz['SAN'])}
-{mos('o2p', 'dout', 'saout', 'vdd', 'vdd', 'pmos4', 3.6, 0.6)}
-{mos('o2n', 'dout', 'saout', 0, 0, 'nmos4', 1.8, 0.6)}
+{mos('o2p', 'dout', 'saout', 'vdd', 'vdd', 'pmos4', *sz['OP'])}
+{mos('o2n', 'dout', 'saout', 0, 0, 'nmos4', *sz['ON'])}
 CRBL rbl 0 20f
 COUT dout 0 30f
 {cell('c0', 'q', 'qb', 'bl', 'blb', 'wwl', 'rwl', 'rbl', 'vdda', sz)}

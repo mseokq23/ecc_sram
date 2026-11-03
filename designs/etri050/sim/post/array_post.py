@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Post-layout check of the drawn 15 x 8 array: Magic extraction (devices + parasitic C) of
 designs/etri050/sram/build/sram_array.mag, column circuits from the schematic, official PDK models.
+With --macro the drawn macro (array + column circuits, gen/colper.py) is extracted instead and driven
+at its pins: WWL/RWL, WD, PRE_N in, SENSE out (100 fF load each, for the route to the control block).
 
 Every corner run writes two patterns (checkerboard and its inverse) into all 15 rows, reads every row
 back through RBL -> precharge/keeper -> sense inverter, and compares all 8 bits of every read.
@@ -11,6 +13,7 @@ sim/cell/retention_time.py), so these runs are not retention tests.
 
   python3 designs/etri050/sim/post/array_post.py               # corners + VDDA dip cases
   python3 designs/etri050/sim/post/array_post.py --quick       # TT 27 C 5 V only
+  python3 designs/etri050/sim/post/array_post.py --macro       # drawn column circuits too
   CAP_SCALE=1.5 python3 ...                                    # extracted C x 1.5 (margin)
 
 Magic's extraction in this kit uses AMI 0.5 um coefficients (not ETRI's table 5.5), so the
@@ -31,15 +34,16 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 BUILD = HERE / "build"
 MODELS = REPO / "designs/etri050/sim/models"
-ARRAY = REPO / "designs/etri050/sram/build/sram_array.mag"
+LAYOUT = REPO / "designs/etri050/sram/build"
 ROWS, COLS = 15, 8
 T = 100e-9                 # cycle: CLK low (precharge, inputs change) then CLK high (read / write)
 EDGE = 1e-9
 CAP_SCALE = float(os.environ.get("CAP_SCALE", "1.5"))
 
-# column circuit sizes (um): precharge, keeper, sense and output inverters (VDD), write drivers (VDDA)
-COL = dict(PRE=(6.0, 0.6), KEEP=(1.8, 1.8), SAP=(4.5, 0.6), SAN=(1.8, 0.6), OP=(3.6, 0.6), ON=(1.8, 0.6),
-           WIP=(3.6, 0.6), WIN=(1.8, 0.6), WDP=(12.0, 0.6), WDN=(6.0, 0.6))
+# column circuit sizes (um) as gen/colper.py draws them (two fingers per inverter, totals here):
+# precharge, keeper, sense and output inverters (VDD), write drivers BLB = not WD, BL = not BLB (VDDA)
+COL = dict(PRE=(6.0, 0.6), KEEP=(1.8, 1.8), SAP=(9.0, 0.6), SAN=(3.6, 0.6), OP=(9.0, 0.6), ON=(3.6, 0.6),
+           WDP=(12.0, 0.6), WDN=(6.0, 0.6))
 
 
 def magicrc():
@@ -47,15 +51,17 @@ def magicrc():
     return os.environ.get("ETRI050_MAGICRC", os.path.join(dk, "tech/etri050.magicrc"))
 
 
-def extract() -> tuple[Path, list[str]]:
+def extract(cell="sram_array") -> tuple[Path, list[str]]:
     """Magic extraction with capacitance; returns the netlist (nmos4/pmos4) and its port order."""
     BUILD.mkdir(parents=True, exist_ok=True)
-    if not ARRAY.exists():
-        sys.exit(f"{ARRAY} not found: run python3 designs/etri050/gen/sram8t.py array")
+    src = LAYOUT / f"{cell}.mag"
+    if not src.exists():
+        gen = "sram8t.py array" if cell == "sram_array" else "colper.py"
+        sys.exit(f"{src} not found: run python3 designs/etri050/gen/{gen}")
     work = BUILD / "pex"
     work.mkdir(exist_ok=True)
-    (work / "sram_array.mag").write_text(ARRAY.read_text())
-    script = """load sram_array -force
+    (work / f"{cell}.mag").write_text(src.read_text())
+    script = f"""load {cell} -force
 extract do capacitance
 extract do coupling
 extract all
@@ -63,12 +69,12 @@ ext2spice cthresh 0
 ext2spice format ngspice
 ext2spice scale off
 ext2spice subcircuit top on
-ext2spice -o sram_array_pex.spice
+ext2spice -o {cell}_pex.spice
 quit -noprompt
 """
     subprocess.run(["magic", "-dnull", "-noconsole", "-rcfile", magicrc()], input=script, text=True,
                    cwd=work, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    raw = (work / "sram_array_pex.spice").read_text()
+    raw = (work / f"{cell}_pex.spice").read_text()
     lines, ports = [], []
     for line in raw.splitlines():            # join continuation lines
         if line.startswith("+") and lines:
@@ -86,7 +92,7 @@ quit -noprompt
             line = f"{m[1]} {m[2]} {m[3]} {float(m[4]) * CAP_SCALE:.4g}f"
         line = re.sub(r"\bnfet\b", "nmos4", re.sub(r"\bpfet\b", "pmos4", line))
         out.append(line)
-    net = BUILD / f"sram_array_pex_x{CAP_SCALE:g}.spice"
+    net = BUILD / f"{cell}_pex_x{CAP_SCALE:g}.spice"
     net.write_text("\n".join(out) + "\n")
     return net, ports
 
@@ -108,13 +114,11 @@ def column(c):
         mos(f"op{c}", f"DOUT{c}", f"SA{c}", "VDD", "VDD", "pmos4", g["OP"]),
         mos(f"on{c}", f"DOUT{c}", f"SA{c}", "0", "0", "nmos4", g["ON"]),
         f"CDOUT{c} DOUT{c} 0 30f",
-        # write drivers: BLB = not WD, BL = not (not WD); inputs come at VDD levels
-        mos(f"wip{c}", f"WDB{c}", f"WD{c}", "VDDA", "VDDA", "pmos4", g["WIP"]),
-        mos(f"win{c}", f"WDB{c}", f"WD{c}", "0", "0", "nmos4", g["WIN"]),
-        mos(f"wbp{c}", f"BL{c}", f"WDB{c}", "VDDA", "VDDA", "pmos4", g["WDP"]),
-        mos(f"wbn{c}", f"BL{c}", f"WDB{c}", "0", "0", "nmos4", g["WDN"]),
+        # write drivers: BLB = not WD, BL = not BLB; WD comes at VDD levels
         mos(f"wcp{c}", f"BLB{c}", f"WD{c}", "VDDA", "VDDA", "pmos4", g["WDP"]),
         mos(f"wcn{c}", f"BLB{c}", f"WD{c}", "0", "0", "nmos4", g["WDN"]),
+        mos(f"wbp{c}", f"BL{c}", f"BLB{c}", "VDDA", "VDDA", "pmos4", g["WDP"]),
+        mos(f"wbn{c}", f"BL{c}", f"BLB{c}", "0", "0", "nmos4", g["WDN"]),
     ])
 
 
@@ -153,7 +157,7 @@ def schedule(retention=None):
     return cyc
 
 
-def deck(net, ports, corner, temp, vdd, vdda, retention=None):
+def deck(net, ports, corner, temp, vdd, vdda, retention=None, macro=False):
     cyc = schedule(retention)
     t_hold = retention[1] if retention else 0.0
     times, t = [], 0.0
@@ -185,7 +189,7 @@ def deck(net, ports, corner, temp, vdd, vdda, retention=None):
          f".include '{net}'",
          ".options gmin=1e-15 reltol=1e-3 abstol=1e-12 method=gear",
          f".temp {temp}",
-         f"VVDD VDD 0 {vdd}"]
+         f"VVDD VDD 0 {vdd}", "VVSS VSS 0 0"]
     if retention:
         v_hold, th = retention
         t_h0 = times[[k for k, *_ in cyc].index("HOLD")]
@@ -193,28 +197,32 @@ def deck(net, ports, corner, temp, vdd, vdda, retention=None):
                  f"{t_h0 + th - 25e-9:.4e} {v_hold} {t_h0 + th - 15e-9:.4e} {vdda})")
     else:
         L.append(f"VVDDA VDDA 0 {vdda}")
-    L.append(pwl(clk, "PREN", "PREN", vdd))
+    L.append(pwl(clk, "PREN", "PRE_N" if macro else "PREN", vdd))
     for r in range(ROWS):
         L.append(pwl(wwl[r], f"WWL{r}", f"WWL{r}", vdd, rs="1k"))
         L.append(pwl(rwl[r], f"RWL{r}", f"RWL{r}", vdd, rs="1k"))
     for c in range(COLS):
         L.append(pwl(wd[c] or [(0, 0)], f"WD{c}", f"WD{c}", vdd))
-    L.append("Xarr " + " ".join(ports) + " sram_array")
-    for c in range(COLS):
-        L.append(column(c))
+    if macro:
+        L.append("Xmac " + " ".join(ports) + " sram_macro")
+        L += [f"CSENSE{c} SENSE{c} 0 100f" for c in range(COLS)]
+    else:
+        L.append("Xarr " + " ".join(ports) + " sram_array")
+        L += [column(c) for c in range(COLS)]
+    out = "SENSE" if macro else "DOUT"
     # sample DOUT at the end of each read cycle with the ngspice 'meas' command
     meas = []
     for k, (ts, r, p) in enumerate(samples):
         for c in range(COLS):
-            meas.append(f"meas tran s{k}_{c} find v(DOUT{c}) at={ts:.6e}")
+            meas.append(f"meas tran s{k}_{c} find v({out}{c}) at={ts:.6e}")
     L.append(f".tran 0.5n {t_end:.4e}")
     L.append(".control\nset num_threads=1\nrun\n" + "\n".join(meas) + "\n.endc\n.end\n")
     return "\n".join(L), samples
 
 
 def run_case(args):
-    name, net, ports, corner, temp, vdd, vdda, retention = args
-    text, samples = deck(net, ports, corner, temp, vdd, vdda, retention)
+    name, net, ports, corner, temp, vdd, vdda, retention, macro = args
+    text, samples = deck(net, ports, corner, temp, vdd, vdda, retention, macro)
     cir = BUILD / f"{name}.cir"
     cir.write_text(text)
     p = subprocess.run(["ngspice", "-b", str(cir)], cwd=BUILD, capture_output=True, text=True, timeout=7200)
@@ -243,8 +251,10 @@ def run_case(args):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--macro", action="store_true", help="the drawn macro (array + column circuits)")
     a = ap.parse_args(argv)
-    net, ports = extract()
+    net, ports = extract("sram_macro" if a.macro else "sram_array")
+    tag = "macro_" if a.macro else ""
     cases = [("tt27", "TT", 27, 5.0, 5.0, None)]
     if not a.quick:
         cases += [("ss125_4v5", "SS", 125, 4.5, 4.5, None), ("ff0_5v5", "FF", 0, 5.5, 5.5, None),
@@ -252,14 +262,14 @@ def main(argv=None):
                   ("tt27_vdda2", "TT", 27, 5.0, 2.0, None),
                   ("dip_0v6", "TT", 27, 5.0, 5.0, (0.6, 2e-6)),
                   ("dip_0v2", "TT", 27, 5.0, 5.0, (0.2, 2e-6))]
-    jobs = [(n, net, ports, k, t, vdd, vdda, ret) for n, k, t, vdd, vdda, ret in cases]
+    jobs = [(tag + n, net, ports, k, t, vdd, vdda, ret, a.macro) for n, k, t, vdd, vdda, ret in cases]
     with ProcessPoolExecutor(max_workers=os.cpu_count()) as ex:
         res = list(ex.map(run_case, jobs))
     for r in res:
         print(f"{r['name']:12s} {r['corner']} {r['temp']:>3} C VDD {r['vdd']} VDDA {r['vdda']}"
               f"{'' if not r['retention'] else ' VDDA dip to %.1f V' % r['retention'][0]}: "
-              f"{r['bits']} bits read, {r['errors']} wrong, DOUT '1' min {r['dout1_min']} V, '0' max {r['dout0_max']} V")
-    (BUILD / "array_post.json").write_text(json.dumps(res, indent=1))
+              f"{r['bits']} bits read, {r['errors']} wrong, output '1' min {r['dout1_min']} V, '0' max {r['dout0_max']} V")
+    (BUILD / f"{tag or 'array_'}post.json").write_text(json.dumps(res, indent=1))
     return 0
 
 
