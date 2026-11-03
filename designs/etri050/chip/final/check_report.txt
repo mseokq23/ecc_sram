@@ -1,0 +1,29 @@
+ECC 8T SRAM chip check, 2026-11-03 11:59 KST, repo b0bbc97
+kit 4b332a7 2026-11-02, KLayout 0.28.16, magic 8.3.105, ngspice-42
+
+== control block
+PASS  ctrl RTL testbench
+PASS  ctrl gate-level testbench
+PASS  ctrl frozen netlist testbench
+PASS  ctrl frozen GDS official DRC (0 markers)
+PASS  ctrl frozen GDS extra checks
+== SRAM blocks (regenerated)
+PASS  8T cell and 15x8 array: Magic DRC, official DRC, LVS
+PASS  SRAM macro (array + column circuits): Magic DRC, official DRC, LVS
+PASS  decoupling VDDW and VDDA: Magic DRC, official DRC, LVS
+PASS  SRAM blocks extra checks
+== pad ring and chip
+PASS  pad ring (ETRI GPIO cells) official DRC
+PASS  chip assembly
+PASS  chip official DRC (KLayout deck from ETRI's Calibre deck): 0 markers
+PASS  chip extra checks (Calibre-only 73, rules 7-12, antenna)
+      ecc_sram_Top.gds: 0 markers in 73 Calibre-only checks, 0 in the seal ring zone, 0 not in the baseline (45 s)
+      ecc_sram_Top.gds: 64 markers in rules 7-12 (rule document values), 0 not in the baseline
+      ecc_sram_Top.gds: 0 nets over the antenna limits (rule document v1.1, no diode credit), 0 without diffusion at that step
+PASS  core LVS (transistor level, Magic + Netgen)
+      Number of devices: 3284                    
+      Number of nets: 1565                       
+PASS  submission GDS checks (mychip_gds_check.py)
+
+ALL CHECKS PASSED: designs/etri050/chip/build/ecc_sram_Top.gds
+saved designs/etri050/chip/final/ecc_sram_Top.gds.gz

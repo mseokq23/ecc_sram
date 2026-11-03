@@ -6,6 +6,7 @@
 #   make gatesim   the same testbench on the synthesized netlist with the kit cell models
 #   make flow      place and route with qflow (run_flow.sh)
 #   make qflowsim  the testbench on the netlist qflow synthesized (build/qflow/synthesis)
+#   make macrosim  the testbench on the frozen macro's gate netlist (macro/ecc_fi_ctrl.v, what the chip uses)
 REPO  := $(abspath ../../..)
 B     := build
 KIT   ?= $(firstword $(wildcard $(REPO)/.pdk/ETRI050_DesignKit) $(wildcard $(HOME)/ETRI050_DesignKit))
@@ -16,7 +17,7 @@ YOSYS ?= yosys
 TOP   := ecc_fi_ctrl
 NOX   := $(B)/nox.lib
 
-.PHONY: all sim synth gatesim flow qflowsim proposal clean check-kit
+.PHONY: all sim synth gatesim flow qflowsim macrosim proposal clean check-kit
 all: sim synth gatesim proposal
 
 check-kit:
@@ -47,6 +48,12 @@ qflowsim: check-kit
 	iverilog -g2005 -Ttyp -o $(B)/tb_qflow.vvp tb/tb_$(TOP).v $(B)/$(TOP)_qflow.v $(CELLV)
 	vvp -n $(B)/tb_qflow.vvp | tee $(B)/sim_qflow.log
 	@grep -q 'TB RESULT: PASS' $(B)/sim_qflow.log
+
+macrosim: check-kit | $(B)
+	python3 strip_port_wires.py macro/$(TOP).v $(B)/$(TOP)_macro.v
+	iverilog -g2005 -Ttyp -o $(B)/tb_macro.vvp tb/tb_$(TOP).v $(B)/$(TOP)_macro.v $(CELLV)
+	vvp -n $(B)/tb_macro.vvp | tee $(B)/sim_macro.log
+	@grep -q 'TB RESULT: PASS' $(B)/sim_macro.log
 
 # the first proposal's RTL (8 words) against an independent Hamming model: 36,864 reads
 proposal: | $(B)
