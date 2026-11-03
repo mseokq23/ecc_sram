@@ -75,17 +75,20 @@ def run(name, deck):
 
 
 # ---------------------------------------------------------------- write: delay and final state
-def write_deck(corner, temp, vdd, vdda=None, sz=SZ):
-    """Write 0 into a cell holding 1: WD = 0 -> BLB = VDDA, BL = not BLB = 0 (drivers in the VDDA domain)."""
+def write_deck(corner, temp, vdd, vdda=None, sz=SZ, vddw=None):
+    """Write 0 into a cell holding 1: WD = 0 -> BLB = VDDW, BL = not BLB = 0. The drivers run on their own
+    supply VDDW (default: VDDA, as when the two pins are tied)."""
     vdda = vdd if vdda is None else vdda
+    vddw = vdda if vddw is None else vddw
     wdp, wdn = sz["WDP"], sz["WDN"]
     return header(corner, temp) + f"""
 VDD vdd 0 {vdd}
 VDDA vdda 0 {vdda}
+VDDW vddw 0 {vddw}
 VWD wd 0 0
-{mos('wcp', 'blb', 'wd', 'vdda', 'vdda', 'pmos4', *wdp)}
+{mos('wcp', 'blb', 'wd', 'vddw', 'vddw', 'pmos4', *wdp)}
 {mos('wcn', 'blb', 'wd', 0, 0, 'nmos4', *wdn)}
-{mos('wbp', 'bl', 'blb', 'vdda', 'vdda', 'pmos4', *wdp)}
+{mos('wbp', 'bl', 'blb', 'vddw', 'vddw', 'pmos4', *wdp)}
 {mos('wbn', 'bl', 'blb', 0, 0, 'nmos4', *wdn)}
 CBL bl 0 25f
 CBLB blb 0 25f

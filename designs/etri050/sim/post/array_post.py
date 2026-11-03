@@ -2,7 +2,8 @@
 """Post-layout check of the drawn 15 x 8 array: Magic extraction (devices + parasitic C) of
 designs/etri050/sram/build/sram_array.mag, column circuits from the schematic, official PDK models.
 With --macro the drawn macro (array + column circuits, gen/colper.py) is extracted instead and driven
-at its pins: WWL/RWL, WD, PRE_N in, SENSE out (100 fF load each, for the route to the control block).
+at its pins: WWL/RWL, WD, PRE_N in, SENSE out (100 fF load each, for the route to the control block);
+the bit line drivers' supply VDDW is tied to VDDA (both pins together, as for normal operation).
 
 Every corner run writes two patterns (checkerboard and its inverse) into all 15 rows, reads every row
 back through RBL -> precharge/keeper -> sense inverter, and compares all 8 bits of every read.
@@ -197,6 +198,8 @@ def deck(net, ports, corner, temp, vdd, vdda, retention=None, macro=False):
                  f"{t_h0 + th - 25e-9:.4e} {v_hold} {t_h0 + th - 15e-9:.4e} {vdda})")
     else:
         L.append(f"VVDDA VDDA 0 {vdda}")
+    if macro:                                   # the bit line drivers' own supply follows VDDA here
+        L.append(L[-1].replace("VVDDA VDDA", "VVDDW VDDW", 1))
     L.append(pwl(clk, "PREN", "PRE_N" if macro else "PREN", vdd))
     for r in range(ROWS):
         L.append(pwl(wwl[r], f"WWL{r}", f"WWL{r}", vdd, rs="1k"))

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Array-supply (VDDA) experiments: read Vmin vs evaluation time and keeper, and the injected current that flips a cell."""
+"""Array-supply experiments: read Vmin (VDDA) vs evaluation time and keeper, the injected current that flips a
+cell, and the write Vmin of the bit line drivers' supply VDDW."""
 import json, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cell8t as c
@@ -50,8 +51,32 @@ with ProcessPoolExecutor(max_workers=os.cpu_count()) as ex:
     res = list(ex.map(ic_job, [(v, d) for v in (5.0, 3.0, 2.0, 1.5, 1.0, 0.8, 0.6, 0.5, 0.4, 0.3) for d in ("down", "up")]))
 out["icrit_TT27"] = [dict(vdda=a[0], direction=a[1], icrit_A=v) for a, v in res]
 
+# write Vmin of the driver supply VDDW: lowest VDDW that still writes 0 into a cell holding 1 (VDD = VDDA = 5 V)
+def write_ok(corner, temp, vddw):
+    r = c.run(f"wv_{corner}_{temp}_{vddw:.4f}", c.write_deck(corner, temp, 5.0, vdda=5.0, vddw=vddw))
+    return r.get("qend", 9) < 0.5 and r.get("qbend", 0) > 4.5
+
+def wvmin_job(args):
+    corner, temp = args
+    lo, hi = 0.2, 5.0
+    if not write_ok(corner, temp, hi):
+        return args, None
+    for _ in range(10):
+        mid = 0.5 * (lo + hi)
+        if write_ok(corner, temp, mid):
+            hi = mid
+        else:
+            lo = mid
+    return args, hi
+
+with ProcessPoolExecutor(max_workers=os.cpu_count()) as ex:
+    res = list(ex.map(wvmin_job, [(k, t) for k in ("TT", "SS", "FF", "SF", "FS") for t in (0, 27, 125)]))
+out["write_vmin_vddw"] = [dict(corner=a[0], temp=a[1], vddw_min=round(v, 3) if v else None) for a, v in res]
+
 json.dump(out, open(os.path.join(c.BUILD, "vdda_summary.json"), "w"), indent=1)
 for row in out["read_vmin"]:
     print(row)
 for row in out["icrit_TT27"]:
+    print(row)
+for row in out["write_vmin_vddw"]:
     print(row)
