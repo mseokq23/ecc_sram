@@ -4,6 +4,8 @@ decoupling, extracted together from build/lvs/ecc_sram_core_lvs.gds (chip/core_l
 and parasitic capacitance (x CAP_SCALE), official PDK models. Inputs are driven at the core side of the pads.
 
   python3 designs/etri050/sim/chip/chip_sim.py [--corner TT --temp 27 --vdd 5 --vdda 5 --vddw 5]
+  python3 designs/etri050/sim/chip/chip_sim.py --no-extract --corner SS --temp 125 --vdd 4.5 --vdda 4.5 --vddw 4.5
+      (the second form reuses the last extraction, so several corners can run side by side)
 
 The sequence writes array words, the standard-cell reference word (address 15) and words with stored
 faults, then reads them back in every read mode; each read is compared with a model of the ECC
@@ -172,13 +174,22 @@ def main(argv=None) -> int:
     ap.add_argument("--vdda", type=float, default=5.0)
     ap.add_argument("--vddw", type=float, default=5.0)
     ap.add_argument("--reuse", action="store_true", help="only compare the log of an earlier run")
+    ap.add_argument("--no-extract", action="store_true",
+                    help="simulate the netlist of an earlier extraction (several corners at once)")
     a = ap.parse_args(argv)
     tag = f"chip_{a.corner}{a.temp}_{a.vdd:g}_{a.vdda:g}_{a.vddw:g}"
     if a.reuse:
         _, samples = deck(BUILD / f"core_pex_x{CAP_SCALE:g}.spice", [], a)
         log = (BUILD / f"{tag}.log").read_text()
     else:
-        net, ports = extract()
+        if a.no_extract:
+            net = BUILD / f"core_pex_x{CAP_SCALE:g}.spice"
+            if not net.exists():
+                sys.exit(f"{net} not found: run once without --no-extract")
+            ports = next(line.split()[2:] for line in net.read_text().splitlines()
+                         if line.lower().startswith(".subckt"))
+        else:
+            net, ports = extract()
         text, samples = deck(net, ports, a)
         (BUILD / f"{tag}.cir").write_text(text)
         for lib in ("05cmos_mosfet_corner.lib", ".spiceinit"):
