@@ -1,0 +1,87 @@
+padgroup Pads_In permute
+twpin_CLK           nonfixed
+twpin_WE            nonfixed
+twpin_ADDR[0]       nonfixed
+twpin_ADDR[1]       nonfixed
+twpin_ADDR[2]       nonfixed
+twpin_ADDR[3]       nonfixed
+twpin_DIN[0]        nonfixed
+twpin_DIN[1]        nonfixed
+twpin_DIN[2]        nonfixed
+twpin_DIN[3]        nonfixed
+twpin_FI_MODE[0]    nonfixed
+twpin_FI_MODE[1]    nonfixed
+twpin_FI_POS[0]     nonfixed
+twpin_FI_POS[1]     nonfixed
+twpin_FI_POS[2]     nonfixed
+restrict side L
+sidespace 0.05 0.95
+
+padgroup Pads_Out permute
+twpin_DOUT_RAW[0]   nonfixed
+twpin_DOUT_RAW[1]   nonfixed
+twpin_DOUT_RAW[2]   nonfixed
+twpin_DOUT_RAW[3]   nonfixed
+twpin_DOUT_CORR[0]  nonfixed
+twpin_DOUT_CORR[1]  nonfixed
+twpin_DOUT_CORR[2]  nonfixed
+twpin_DOUT_CORR[3]  nonfixed
+twpin_SEC_FLAG      nonfixed
+twpin_DED_FLAG      nonfixed
+restrict side T
+sidespace 0.05 0.9
+
+padgroup Array_WL permute
+twpin_WWL[0]        nonfixed
+twpin_WWL[1]        nonfixed
+twpin_WWL[2]        nonfixed
+twpin_WWL[3]        nonfixed
+twpin_WWL[4]        nonfixed
+twpin_WWL[5]        nonfixed
+twpin_WWL[6]        nonfixed
+twpin_WWL[7]        nonfixed
+twpin_WWL[8]        nonfixed
+twpin_WWL[9]        nonfixed
+twpin_WWL[10]       nonfixed
+twpin_WWL[11]       nonfixed
+twpin_WWL[12]       nonfixed
+twpin_WWL[13]       nonfixed
+twpin_WWL[14]       nonfixed
+twpin_RWL[0]        nonfixed
+twpin_RWL[1]        nonfixed
+twpin_RWL[2]        nonfixed
+twpin_RWL[3]        nonfixed
+twpin_RWL[4]        nonfixed
+twpin_RWL[5]        nonfixed
+twpin_RWL[6]        nonfixed
+twpin_RWL[7]        nonfixed
+twpin_RWL[8]        nonfixed
+twpin_RWL[9]        nonfixed
+twpin_RWL[10]       nonfixed
+twpin_RWL[11]       nonfixed
+twpin_RWL[12]       nonfixed
+twpin_RWL[13]       nonfixed
+twpin_RWL[14]       nonfixed
+restrict side R
+sidespace 0.05 0.95
+
+padgroup Column permute
+twpin_PRE_N         nonfixed
+twpin_WD[0]         nonfixed
+twpin_WD[1]         nonfixed
+twpin_WD[2]         nonfixed
+twpin_WD[3]         nonfixed
+twpin_WD[4]         nonfixed
+twpin_WD[5]         nonfixed
+twpin_WD[6]         nonfixed
+twpin_WD[7]         nonfixed
+twpin_SENSE[0]      nonfixed
+twpin_SENSE[1]      nonfixed
+twpin_SENSE[2]      nonfixed
+twpin_SENSE[3]      nonfixed
+twpin_SENSE[4]      nonfixed
+twpin_SENSE[5]      nonfixed
+twpin_SENSE[6]      nonfixed
+twpin_SENSE[7]      nonfixed
+restrict side B
+sidespace 0.05 0.9

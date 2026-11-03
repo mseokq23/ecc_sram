@@ -1,0 +1,38 @@
+// IIC-OSIC-TOOLS in GitHub Codespaces with a browser desktop (noVNC)
+// for the ECC 8T SRAM chip (ETRI 0.5 um MyChip): full-custom layout, DRC, LVS, ngspice, qflow.
+{
+  "name": "ECC 8T SRAM - ETRI 0.5um MyChip (IIC-OSIC-TOOLS)",
+
+  // Official devcontainer variant of IIC-OSIC-TOOLS (adds a real "designer" user).
+  // Pinned release (2026.10 = "latest" on 2026-11-02, digest sha256:deea2576...) so results stay reproducible.
+  "image": "hpretl/iic-osic-tools-devcontainer:2026.10",
+
+  // Minimum machine. Pick 4-core when creating the codespace if the desktop feels slow.
+  "hostRequirements": { "cpus": 2, "memory": "8gb", "storage": "32gb" },
+
+  "containerEnv": {
+    "NO_VNC_PORT": "6080",          // noVNC web client port (unprivileged, easy to forward)
+    "XKB_KEYBOARD_LAYOUT": "us",
+    "XKB_KEYBOARD_VARIANT": "",
+    "TZ": "Asia/Seoul",
+    "ETRI050_WITH_DOCS": "1"        // also fetch the official PDK 260820 (models, rule decks, PDFs)
+  },
+
+  // GUI programs started from VS Code terminals appear on the noVNC desktop.
+  "remoteEnv": { "DISPLAY": ":1" },
+
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": { "label": "EDA Desktop (noVNC)", "onAutoForward": "openBrowserOnce" }
+  },
+
+  // Once per codespace: ETRI kit + official models, then the qflow digital flow (a few minutes).
+  "postCreateCommand": "bash scripts/setup-all.sh",
+  // Every start (also after a stop/resume): bring up Xvnc + XFCE + noVNC.
+  "postStartCommand": "bash .devcontainer/start-desktop.sh",
+
+  "customizations": {
+    "codespaces": { "openFiles": ["README.md"] },
+    "vscode": { "extensions": ["mshr-h.veriloghdl"] }
+  }
+}
