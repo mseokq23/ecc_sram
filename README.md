@@ -9,6 +9,8 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 
 사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
 
+**최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`). 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
+
 ## 진행 상황 (2026-11-03)
 
 | 블록 | 결과 |
@@ -18,7 +20,8 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 | SRAM 매크로(어레이 + 컬럼 회로), 디커플링 | 같은 검사 모두 0·일치. 후모의 5 코너 + VDDA 2 V, 240비트씩 오류 0 |
 | 제어 블록 ecc_fi_ctrl | RTL·게이트·배치 후 시험 통과(121,616회 비교), 평면 LVS 일치, DRC 0, 매크로 고정 |
 | 패드 링·칩 조립 | 칩 전체 공식 DRC 0, Calibre 전용 0, 안테나 0, 코어 LVS 일치(3,284 소자), 제출 GDS 검사 통과 |
-| 칩 코어 트랜지스터 모의 (코어 전체 추출, TT 27 °C) | 쓰기·읽기·결함 주입 13번 읽기 모두 ECC 모델과 같음 |
+| 칩 코어 트랜지스터 모의 (코어 전체 추출) | TT 27 °C 5 V, SS 125 °C 4.5 V, FF 0 °C 5.5 V, VDDA·VDDW 2.0 V: 쓰기·읽기·결함 주입 13번 읽기 모두 ECC 모델과 같음 |
+| 최종 GDS | `chip/check_all.sh --save`: 소스에서 블록과 칩을 다시 만들어 위 검사를 모두 다시 통과한 GDS를 `chip/final`에 저장 |
 
 선례로 정한 것(ETRI 문의 없이): VDDA·VDDW는 PANA PADR, 전원 패드 PVDD 2·PVSS 3, 출력 POB8 — 근거는 docs/verification.md 7절.
 
@@ -36,6 +39,8 @@ scripts/
   extra_checks.sh         킷 KLayout 덱이 안 보는 규칙: calibre_rules.py, metal_rules.py, antenna_rules.py
   fill_notches.py, snap_grid.py   qflow 결과의 금속 틈 메우기, 0.01 µm 격자 맞추기
   mychip_gds_check.py     제출 GDS 자체 검사(층, 격자, 스크라이브 레인, 패드 개구 …)
+  render_gds.py, doc_figures.py   GDS를 PNG로 그리기, docs/img 그림 다시 그리기
+  gds_xor.py              두 GDS의 도형 비교(층마다 XOR 면적)
 designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
   gen/colper.py           어레이 아래 컬럼 회로, 어레이와 합친 SRAM 매크로(sram_macro)
@@ -45,8 +50,10 @@ designs/etri050/
   ctrl/                   제어 블록: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정
   ctrl/macro/             고정한 제어 블록(GDS, 넷리스트, 핀 좌표)
   chip/                   패드 링(pins.csv, run_pad_ring.sh), 칩 조립(assemble.py), 코어 LVS(core_lvs.py)
+  chip/check_all.sh       소스에서 전체를 다시 만들고 모든 검사, --save면 통과한 GDS를 chip/final에 저장
+  chip/final/             최종 GDS(gzip), sha256, 재검사 기록
   sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입을 ECC 모델과 비교)
-docs/                     사양, 검증 기록
+docs/                     안내(guide.md), 사양, 검증 기록, 그림(img/)
 ```
 
 PDK 파일(모델, 덱 원본, GPIO, 패드 프레임)은 저장소에 넣지 않는다. 모델은 `scripts/get-models.sh`가 킷에 들어 있는 PDK 압축에서 꺼내고, `.gitignore`가 그 폴더를 뺀다. 표준셀은 공개 킷(GPL-3.0)의 것이고 `ctrl/macro`에는 그 셀로 만든 배치 결과만 있다.
@@ -109,6 +116,9 @@ BASELINE=designs/etri050/chip/build/ecc_sram_Pad.gds bash scripts/extra_checks.s
 python3 designs/etri050/chip/core_lvs.py
 python3 scripts/mychip_gds_check.py --top ecc_sram_Top designs/etri050/chip/build/ecc_sram_Top.gds
 python3 designs/etri050/sim/chip/chip_sim.py
+
+# 위 전체를 한 번에: 블록·칩 다시 만들기와 모든 검사 (--save: 통과하면 chip/final에 저장)
+bash designs/etri050/chip/check_all.sh
 ```
 
 ## 작업 규칙
