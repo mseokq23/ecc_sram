@@ -1,0 +1,29 @@
+pad,pin,cell,port,function,range
+W1,CLK,PIC,Y,클록: 0 프리차지 · 1 읽기/쓰기,≤ 1 MHz
+W2,WE,PIC,Y,쓰기(1) / 읽기(0),디지털
+W3,ADDR0,PIC,Y,주소 0,디지털
+W4,ADDR1,PIC,Y,주소 1,디지털
+W5,ADDR2,PIC,Y,주소 2,디지털
+W6,ADDR3,PIC,Y,주소 3,디지털
+W7,DIN3,PIC,Y,쓰기 데이터 3,디지털 0/5 V
+N1,FI_POS0,PIC,Y,결함 위치 0 · 원시 보기 반쪽 선택,디지털
+N2,FI_POS1,PIC,Y,결함 위치 1,디지털
+N3,FI_POS2,PIC,Y,결함 위치 2,디지털
+N4,PVDD,PVDD,VDD,링·코어 전원,5 V (4.5–5.5 V)
+N5,DED,POB8,A,2비트 오류 검출,디지털 출력
+N6,SEC,POB8,A,1비트 오류(정정),디지털 출력
+N7,DOUT3,POB8,A,데이터 출력 3,디지털 출력
+E1,PVSS,PVSS,VSS,접지·기판,0 V
+E2,VDDW,PANA,PADR,비트라인 드라이버 전원,0–5 V · ≤ VDD · µA 평균
+E3,VDDA,PANA,PADR,셀 어레이 전원,0–5 V · ≤ VDD · 누설만
+E4,PVSS,PVSS,VSS,접지·기판,0 V
+E5,DOUT0,POB8,A,데이터 출력 0,디지털 출력
+E6,DOUT1,POB8,A,데이터 출력 1,디지털 출력
+E7,DOUT2,POB8,A,데이터 출력 2,디지털 출력
+S1,FI_MODE1,PIC,Y,결함 모드 1,디지털
+S2,FI_MODE0,PIC,Y,결함 모드 0,디지털
+S3,DIN2,PIC,Y,쓰기 데이터 2,디지털
+S4,DIN1,PIC,Y,쓰기 데이터 1,디지털
+S5,DIN0,PIC,Y,쓰기 데이터 0,디지털
+S6,PVSS,PVSS,VSS,접지·기판,0 V
+S7,PVDD,PVDD,VDD,링·코어 전원,5 V

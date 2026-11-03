@@ -15,9 +15,9 @@ Per column, from the array down (lambda; x from the column's left edge, y from t
     VDD rail
     P1 strip  VDD | keeper (SB) | RBL | precharge (PRE_N) | VDD     keeper 1.8/1.8, precharge 6.0/0.6
     RBL via (gamma 1), SB -> keeper gate (gamma 2), PRE_N rail
-  write part, VDDA (y -184 .. -281)
-    VDDA rail
-    P strip   VDDA | g1 | BL | g2 | VDDA | g3 | BLB | g4 | VDDA    P 6.0/0.6 per finger
+  write part, VDDW (y -184 .. -281)
+    VDDW rail
+    P strip   VDDW | g1 | BL | g2 | VDDW | g3 | BLB | g4 | VDDW    P 6.0/0.6 per finger
     channel   g1-g2 <- BLB (y_a), BL and BLB vias (y_c), g3-g4 <- WD (y_b)
     N strip   VSS  | g1 | BL | g2 | VSS  | g3 | BLB | g4 | VSS     N 3.0/0.6 per finger
     VSS rail
@@ -27,8 +27,10 @@ So SENSE = not SB = RBL (same polarity as the stored Q), BLB = not WD, BL = not 
 g3/g4 pairs are two fingers of one inverter. The source contacts on the column edges are shared with
 the neighbouring column, so the strips run across all columns. Metal2 tracks per column: BL 1-5,
 SENSE 13-17, RBL 27-31 below the jog, SB 38-42, BLB 49-53, WD 27-31 (write part only).
-Supplies: VSS and VDDA buses of the array continue down; VDD bus at 42-54 right of the array.
-The two N-wells (VDD, VDDA) are 46 lambda (13.8 um) apart, the rule for different potentials is 4.0 um.
+Supplies: VSS and VDDA buses of the array continue down; VDD bus at 42-54 and VDDW bus at 60-72 right of
+the array. The write drivers have their own supply VDDW (bit line high level; tie it to VDDA for the array
+alone, lower it for write-margin tests), the cells keep VDDA. The read part's N-well (VDD) and the write
+part's (VDDW) are 46 lambda (13.8 um) apart, the rule for different potentials is 4.0 um.
 """
 from __future__ import annotations
 
@@ -41,7 +43,7 @@ import sram8t as s8  # noqa: E402
 
 PX = s8.PITCH_X
 Y_BOT = -292
-BUS = dict(s8.BUS, VDD=(42, 54))
+BUS = dict(s8.BUS, VDD=(42, 54), VDDW=(60, 72))
 
 # per-finger sizes (um) as drawn
 SZ = dict(SAN=(1.8, 0.6), SAP=(4.5, 0.6), KEEP=(1.8, 1.8), PRE=(6.0, 0.6), WDN=(3.0, 0.6), WDP=(6.0, 0.6))
@@ -62,7 +64,7 @@ C = dict(jog=(-19, -15), vss=(-28, -21), n=(-40, -34),
          g2_m1=(-156, -147), g2_via=(-155, -148), g2_pc=(-155, -149),
          pren=(-170, -163), pren_pc=(-169, -163))
 # write part
-A = dict(nwell=(-226, -184), vdda=(-194, -187), p=(-220, -200),
+A = dict(nwell=(-226, -184), vddw=(-194, -187), p=(-220, -200),
          ya_pc=(-229, -223), ya_bar=(-227, -225),
          yc_m1=(-242, -233), yc_via=(-241, -234),
          yb_m1=(-255, -246), yb_via=(-254, -247), yb_pc=(-253, -247), yb_bar=(-251, -249),
@@ -152,21 +154,21 @@ def draw(lay: s8.Layout, cols: int):
     r(None, "pdiffusion", SB_X[0], A["p"][0], xr + SB_X[1], A["p"][1])
     r(None, "ndiffusion", SB_X[0], A["n"][0], xr + SB_X[1], A["n"][1])
     r(None, "nwell", xl, A["nwell"][0], xr - xl, A["nwell"][1])
-    r("VDDA", "metal1", xl, A["vdda"][0], xr + BUS["VDDA"][1] + 1, A["vdda"][1])
+    r("VDDW", "metal1", xl, A["vddw"][0], xr + BUS["VDDW"][1] + 1, A["vddw"][1])
     r("VSS", "metal1", xl, A["vss"][0], xr + BUS["VSS"][1] + 1, A["vss"][1])
     for k in range(cols + 1):
         x = k * PX
-        r("VDDA", "pdcontact", x + SB_X[0], A["p"][0], x + SB_X[1], A["p"][1])
-        r("VDDA", "metal1", x + SB_X[0], A["p"][1], x + SB_X[1], A["vdda"][0])
+        r("VDDW", "pdcontact", x + SB_X[0], A["p"][0], x + SB_X[1], A["p"][1])
+        r("VDDW", "metal1", x + SB_X[0], A["p"][1], x + SB_X[1], A["vddw"][0])
         r("VSS", "ndcontact", x + SB_X[0], A["n"][0], x + SB_X[1], A["n"][1])
         r("VSS", "metal1", x + SB_X[0], A["vss"][1], x + SB_X[1], A["n"][0])
     for c in range(cols):
         x = c * PX
         bl, blb, wd = f"BL{c}", f"BLB{c}", f"WD{c}"
-        r("VDDA", "nsubstratencontact", x + 12, A["vdda"][0] + 1, x + 18, A["vdda"][1])
+        r("VDDW", "nsubstratencontact", x + 12, A["vddw"][0] + 1, x + 18, A["vddw"][1])
         r("VSS", "psubstratepcontact", x + 12, A["vss"][0] + 1, x + 18, A["vss"][1])
-        r("VDDA", "pdcontact", x + SC[0], A["p"][0], x + SC[1], A["p"][1])
-        r("VDDA", "metal1", x + SC[0], A["p"][1], x + SC[1], A["vdda"][0])
+        r("VDDW", "pdcontact", x + SC[0], A["p"][0], x + SC[1], A["p"][1])
+        r("VDDW", "metal1", x + SC[0], A["p"][1], x + SC[1], A["vddw"][0])
         r("VSS", "ndcontact", x + SC[0], A["n"][0], x + SC[1], A["n"][1])
         r("VSS", "metal1", x + SC[0], A["vss"][1], x + SC[1], A["n"][0])
         for net, (a, b) in ((bl, D1), (blb, D2)):
@@ -205,12 +207,14 @@ def draw(lay: s8.Layout, cols: int):
         r(net, "metal2", xr + a, Y_BOT, xr + b, s8.BOTTOM)
     a, b = BUS["VDD"]
     r("VDD", "metal2", xr + a, Y_BOT, xr + b, C["vdd"][1] + 1)
-    for net in ("VSS", "VDDA", "VDD"):
+    a, b = BUS["VDDW"]
+    r("VDDW", "metal2", xr + a, Y_BOT, xr + b, A["vddw"][1] + 1)
+    for net in ("VSS", "VDDA", "VDD", "VDDW"):
         a, b = BUS[net]
         lay.port(net, "metal2", xr + a, Y_BOT, xr + b, Y_BOT + 3)
     bus_via("VSS", sum(C["vss"]) / 2)
     bus_via("VDD", sum(C["vdd"]) / 2)
-    bus_via("VDDA", sum(A["vdda"]) / 2)
+    bus_via("VDDW", sum(A["vddw"]) / 2)
     bus_via("VSS", sum(A["vss"]) / 2)
 
 
@@ -233,9 +237,9 @@ def periphery_netlist(cols=s8.COLS, model_n="nfet", model_p="pfet") -> str:
             m(f"sn{f}_{c}", sb, rbl, "VSS", "VSS", model_n, SZ["SAN"])
             m(f"sp{f}_{c}", sb, rbl, "VDD", "VDD", model_p, SZ["SAP"])
             m(f"bln{f}_{c}", bl, blb, "VSS", "VSS", model_n, SZ["WDN"])
-            m(f"blp{f}_{c}", bl, blb, "VDDA", "VDDA", model_p, SZ["WDP"])
+            m(f"blp{f}_{c}", bl, blb, "VDDW", "VDDW", model_p, SZ["WDP"])
             m(f"bbn{f}_{c}", blb, wd, "VSS", "VSS", model_n, SZ["WDN"])
-            m(f"bbp{f}_{c}", blb, wd, "VDDA", "VDDA", model_p, SZ["WDP"])
+            m(f"bbp{f}_{c}", blb, wd, "VDDW", "VDDW", model_p, SZ["WDP"])
         m(f"keep_{c}", rbl, sb, "VDD", "VDD", model_p, SZ["KEEP"])
         m(f"pre_{c}", rbl, "PRE_N", "VDD", "VDD", model_p, SZ["PRE"])
     return "\n".join(L) + "\n"
@@ -244,7 +248,7 @@ def periphery_netlist(cols=s8.COLS, model_n="nfet", model_p="pfet") -> str:
 def macro_netlist(rows=s8.ROWS, cols=s8.COLS, name="sram_macro") -> str:
     ports = ([f"WWL{r}" for r in range(rows)] + [f"RWL{r}" for r in range(rows)]
              + [f"WD{c}" for c in range(cols)] + [f"SENSE{c}" for c in range(cols)]
-             + ["PRE_N", "VDD", "VDDA", "VSS"])
+             + ["PRE_N", "VDD", "VDDA", "VDDW", "VSS"])
     arr = s8.array_netlist(rows, cols, "x").splitlines()[1:-1]       # body of the array subcircuit
     return (f".subckt {name} " + " ".join(ports) + "\n" + "\n".join(arr) + "\n"
             + periphery_netlist(cols) + ".ends\n")

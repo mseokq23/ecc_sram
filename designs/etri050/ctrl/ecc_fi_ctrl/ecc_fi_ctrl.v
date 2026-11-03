@@ -7,11 +7,13 @@
 //   00  codeword as encoded                               00  normal read, corrected
 //   01  bit k flipped            (1-bit stored error)     01  bit k flipped after sensing (transient)
 //   10  bits k, k^1 flipped      (2-bit stored error)     10  bits k, k^1 flipped after sensing
-//   11  bits k, k^1, k^2 flipped (3-bit stored error)     11  raw view: DOUT_RAW = data bits, DOUT_CORR = {R4, R2, R1, R0}
+//   11  bits k, k^1, k^2 flipped (3-bit stored error)     11  raw view: DOUT = FI_POS[0] ? {R7, R6, R5, R3} (data bits)
+//                                                                                    : {R4, R2, R1, R0} (check bits)
 //
 // Timing: CLK = 0 precharges the read bit lines; ADDR, WE and DIN change only while CLK = 0.
 // CLK = 1 reads (outputs valid while CLK stays 1) or writes the addressed row.
 // The write drivers are always on: only the selected row's WWL writes, so no write enable is needed.
+// DOUT is the corrected data in read modes 00-10; the stored codeword is read out in mode 11, half per cycle.
 module ecc_fi_ctrl (
     input  wire        CLK,
     input  wire        WE,
@@ -24,8 +26,7 @@ module ecc_fi_ctrl (
     output wire [14:0] RWL,        // read word lines, rows 0-14
     output wire        PRE_N,      // read bit line precharge, active low (= CLK)
     output wire [7:0]  WD,         // write data to the column drivers
-    output wire [3:0]  DOUT_RAW,
-    output wire [3:0]  DOUT_CORR,
+    output wire [3:0]  DOUT,
     output wire        SEC_FLAG,
     output wire        DED_FLAG
 );
@@ -69,6 +70,5 @@ module ecc_fi_ctrl (
     assign DED_FLAG = (|s) & ~q;
     wire [3:0] corr = {r[7] ^ (q & (s == 3'd7)), r[6] ^ (q & (s == 3'd6)),
                        r[5] ^ (q & (s == 3'd5)), r[3] ^ (q & (s == 3'd3))};
-    assign DOUT_RAW  = {r[7], r[6], r[5], r[3]};
-    assign DOUT_CORR = rawview ? {r[4], r[2], r[1], r[0]} : corr;
+    assign DOUT = rawview ? (FI_POS[0] ? {r[7], r[6], r[5], r[3]} : {r[4], r[2], r[1], r[0]}) : corr;
 endmodule

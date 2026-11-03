@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // Exhaustive check of ecc_fi_ctrl with a behavioral 8T array (15 rows) that precharges while CLK = 0.
 //  phase 1: every address x data x stored-fault mode/position, each read back with every read-fault mode
+//           (mode 11 with FI_POS[0] = 0 and 1: both halves of the stored codeword)
 //  phase 2: distinct data in all 16 words, then all read back (address decoding, no cross-writes)
 //  monitors: word lines only while CLK = 1, at most one at a time, none for address 15
 module tb;
@@ -11,12 +12,12 @@ module tb;
     wire [14:0] WWL, RWL;
     wire PRE_N, SEC_FLAG, DED_FLAG;
     wire [7:0] WD;
-    wire [3:0] DOUT_RAW, DOUT_CORR;
+    wire [3:0] DOUT;
     reg  [7:0] SENSE;
 
     ecc_fi_ctrl dut (.CLK(CLK), .WE(WE), .ADDR(ADDR), .DIN(DIN), .FI_MODE(FI_MODE), .FI_POS(FI_POS),
                      .SENSE(SENSE), .WWL(WWL), .RWL(RWL), .PRE_N(PRE_N), .WD(WD),
-                     .DOUT_RAW(DOUT_RAW), .DOUT_CORR(DOUT_CORR), .SEC_FLAG(SEC_FLAG), .DED_FLAG(DED_FLAG));
+                     .DOUT(DOUT), .SEC_FLAG(SEC_FLAG), .DED_FLAG(DED_FLAG));
 
     // behavioral array: write while WWL[i] is high; the read bitline only discharges (stored 0) during
     // evaluation and returns to 1 only through precharge (PRE_N = 0)
@@ -87,13 +88,13 @@ module tb;
 
     task rd_check(input [3:0] a, input [7:0] stored, input [1:0] m, input [2:0] p);
         reg [7:0] r, corr; reg [2:0] s; reg q; integer k;
-        reg [3:0] e_raw, e_corr; reg e_sec, e_ded;
+        reg [3:0] e_dout; reg e_sec, e_ded;
         begin
             WE = 0; ADDR = a; FI_MODE = m; FI_POS = p; DIN = $random;
             #2;                                              // precharge phase: array side shows all ones
             if (a != 4'd15 && m == 2'b00) begin
                 pre_checks = pre_checks + 1;
-                if (DOUT_RAW !== 4'hF || SEC_FLAG || DED_FLAG) begin
+                if (DOUT !== 4'hF || SEC_FLAG || DED_FLAG) begin
                     errors = errors + 1; $display("precharge view unexpected a=%0d", a);
                 end
             end
@@ -102,14 +103,14 @@ module tb;
             s = 3'd0; for (k = 1; k <= 7; k = k + 1) if (r[k]) s = s ^ k[2:0];
             q = ^r;
             corr = q ? (r ^ (8'd1 << s)) : r;
-            e_raw = {r[7], r[6], r[5], r[3]};
-            e_corr = (m == 2'b11) ? {r[4], r[2], r[1], r[0]} : {corr[7], corr[6], corr[5], corr[3]};
+            e_dout = (m != 2'b11) ? {corr[7], corr[6], corr[5], corr[3]}
+                   : p[0] ? {r[7], r[6], r[5], r[3]} : {r[4], r[2], r[1], r[0]};
             e_sec = q; e_ded = ~q & (s != 3'd0);
             checks = checks + 1;
-            if ({DOUT_RAW, DOUT_CORR, SEC_FLAG, DED_FLAG} !== {e_raw, e_corr, e_sec, e_ded}) begin
+            if ({DOUT, SEC_FLAG, DED_FLAG} !== {e_dout, e_sec, e_ded}) begin
                 errors = errors + 1;
-                if (errors < 10) $display("MISMATCH a=%0d stored=%b m=%b p=%0d got %h %h %b%b exp %h %h %b%b",
-                    a, stored, m, p, DOUT_RAW, DOUT_CORR, SEC_FLAG, DED_FLAG, e_raw, e_corr, e_sec, e_ded);
+                if (errors < 10) $display("MISMATCH a=%0d stored=%b m=%b p=%0d got %h %b%b exp %h %b%b",
+                    a, stored, m, p, DOUT, SEC_FLAG, DED_FLAG, e_dout, e_sec, e_ded);
             end
             #2 CLK = 0;
         end
@@ -127,7 +128,7 @@ module tb;
                     st = g_encode(d[3:0]) ^ g_mask(wm[1:0], wp[2:0], 1'b1);
                     for (rm = 0; rm < 4; rm = rm + 1)
                         for (rp = 0; rp < 8; rp = rp + 1)
-                            if (!((rm == 0 || rm == 3) && rp != 0)) rd_check(a[3:0], st, rm[1:0], rp[2:0]);
+                            if (!((rm == 0 && rp != 0) || (rm == 3 && rp > 1))) rd_check(a[3:0], st, rm[1:0], rp[2:0]);
                 end
         // phase 2: distinct data in every word, then read all of them back
         for (a = 0; a < 16; a = a + 1) wr(a[3:0], a[3:0] ^ 4'h5, 2'b00, 3'd0);

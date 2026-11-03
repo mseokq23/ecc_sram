@@ -8,6 +8,9 @@
 # build/qflow/tech/etri050, which links the kit files under the names tech/etri050.sh expects.
 # Summary: build/qflow/flow_summary.txt
 set -uo pipefail
+# GrayWolf opens its graphics window when DISPLAY is set (etri050-env.sh sets :1 for the noVNC desktop);
+# without an X server there it exits with status 2, so the flow always runs it without graphics.
+unset DISPLAY
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -56,7 +59,9 @@ export QFLOW_TECH_DIR="$T"
 # One change to the kit's GrayWolf parameters: the core aspect ratio (height / width, read as
 # TWMC*chip.aspect.ratio; the kit template uses 1.0 and qflow's own GUI edits the same line).
 # The block sits left of the SRAM array; its right side carries the word lines and column signals.
-ASPECT="${ASPECT:-1.0}"
+# 1.02 rather than 1.0: with the present pin groups, 1.0 leaves one VIA2 stacked on a VIA1
+# (11.VIA2.S_Stack); 1.02 gives the same die size without it (the frozen macro is this run).
+ASPECT="${ASPECT:-1.02}"
 cp "$KIT/scripts/RTL_Project/ETRI050/project_vars.sh"        "$W/project_vars.sh"
 echo 'set route_show = 0   # batch run: no qrouter display window' >> "$W/project_vars.sh"
 sed "s/^TWMC\*chip.aspect.ratio.*/TWMC*chip.aspect.ratio : $ASPECT/" \
