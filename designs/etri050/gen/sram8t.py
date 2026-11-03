@@ -233,9 +233,10 @@ def wl_stack(lay: Layout, net, yc):
     lay.port(net, "metal3", W["m3"][0], yc - 2, W["m3"][0] + 4, yc + 2)
 
 
-def array_layout(rows=ROWS, cols=COLS, name="sram_array") -> Layout:
+def array_layout(rows=ROWS, cols=COLS, name="sram_array", bottom_pins=True) -> Layout:
     """Flat array with its edges: WL pins (metal3) on the left, VSS and VDDA buses (metal2) on the
-    right, bit lines (metal2) ending at the bottom for the column circuits."""
+    right, bit lines (metal2) ending at the bottom for the column circuits. bottom_pins=False leaves
+    the bit lines and buses without pins (gen/colper.py continues them into the column circuits)."""
     lay = Layout(name)
     xr = cols * PITCH_X
     for rr in range(rows):
@@ -262,12 +263,14 @@ def array_layout(rows=ROWS, cols=COLS, name="sram_array") -> Layout:
     top = rows * PITCH_Y + 3
     for net, (a, b) in BUS.items():
         lay.r(net, "metal2", xr + a, BOTTOM, xr + b, top)
-        lay.port(net, "metal2", xr + a, BOTTOM, xr + b, BOTTOM + 3)
+        if bottom_pins:
+            lay.port(net, "metal2", xr + a, BOTTOM, xr + b, BOTTOM + 3)
     for c in range(cols):
         x = c * PITCH_X
         for net, (a, b) in ((f"BL{c}", (1, 5)), (f"RBL{c}", (38, 42)), (f"BLB{c}", (49, 53))):
             lay.r(net, "metal2", x + a, BOTTOM, x + b, -3)
-            lay.port(net, "metal2", x + a, BOTTOM, x + b, BOTTOM + 3)
+            if bottom_pins:
+                lay.port(net, "metal2", x + a, BOTTOM, x + b, BOTTOM + 3)
     return lay
 
 
