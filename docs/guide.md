@@ -11,16 +11,19 @@
 | `designs/etri050/chip/final/check_report.txt` | 이 GDS를 만든 전체 재검사 기록(`check_all.sh --save`) |
 
 - 공정: ETRI NSPL 0.5 µm CMOS 2P3M 5 V, 28핀 패드 틀(MPW_PAD_28pin)
-- GDS 범위 1705 × 1705 µm, 설계 면적(패드 셀 안쪽) 1016 × 1016 µm, 트랜지스터 게이트 4,700개(패드 셀 포함)
+- GDS 범위 1705 × 1705 µm, 설계 면적(패드 셀 안쪽) 1016 × 1016 µm, 트랜지스터 게이트 5,626개(패드 셀 포함)
 - 셀 계층
 
 ```
 ecc_sram_Top
 ├── ecc_sram_core          코어 (chip/assemble.py가 조립)
-│   ├── ecc_fi_ctrl_F      제어 블록: 표준셀 347개, qflow 배치·배선
+│   ├── ecc_fi_ctrl_F      제어 블록: 표준셀 364개, qflow 배치·배선
 │   ├── sram_macro         8T 셀 어레이 15 × 8 + 컬럼 회로
 │   ├── decap_vddw         VDDW 디커플링 57 pF
-│   └── decap_vdda         VDDA 디커플링 28.5 pF
+│   ├── decap_vdda         VDDA 디커플링 28.5 pF
+│   ├── canary_flat        신뢰성 모니터: 카나리 래치 8개 (VDDA)
+│   ├── robank_flat        신뢰성 모니터: RO 뱅크 INV · NAND · NOR
+│   └── ro_div_F           신뢰성 모니터: 분주기 ÷256, qflow 배치·배선
 └── ecc_sram_Pad           패드 링: ETRI GPIO 패드 28개와 코너·필러 셀
 ```
 
@@ -34,6 +37,8 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 2. **물리 결함**: 셀 전원 VDDA와 비트라인 드라이버 전원 VDDW를 따로 핀으로 받는다. 이 둘을 낮추면 보존 실패(값을 잃음), 읽기 실패, 쓰기 실패가 실제 셀에서 생긴다. 어느 비트가 먼저 틀릴지는 셀마다 다르다(공정 편차)
 
 원시 보기(읽기 모드 11)는 저장된 8비트를 정정 없이 그대로 읽는다. 원시 보기로 실패 비트 지도를 만들고 같은 워드의 정정 출력과 SEC/DED가 그 지도와 맞는지 비교하는 것이 측정의 중심이다.
+
+코어 위쪽에는 신뢰성 모니터를 넣었다(4.8절, 설계안과 검토는 [monitor.md](monitor.md)). 카나리 래치 8개는 셀과 같은 VDDA에 있으면서 셀보다 높은 전압에서 차례로 값을 잃어 보존 실패가 다가오는 것을 알리고, RO 뱅크 세 링의 주파수는 그 다이가 어느 공정 코너 쪽인지 알려 준다. 측정값을 그 코너의 모의값과 비교할 수 있다.
 
 - 16워드 × 8비트(데이터 4 + 검사 4) = 128비트
 - 주소 0–14: 맞춤 설계한 8T 셀 행. 주소 15: 제어 블록 안의 표준셀 플립플롭 8개(기준 워드). 어레이가 동작하지 않아도 ECC와 논리 결함 주입은 주소 15로 확인할 수 있다
@@ -59,7 +64,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 | 11 | DIN1 | PIC | 쓰기 데이터 1 | 25 | VDD | PVDD | 링·코어 전원 5 V |
 | 12 | DIN0 | PIC | 쓰기 데이터 0 | 26 | FI_POS2 | PIC | 결함 위치 2 |
 | 13 | VSS | PVSS | 접지·기판 | 27 | FI_POS1 | PIC | 결함 위치 1 |
-| 14 | VDD | PVDD | 링·코어 전원 5 V | 28 | FI_POS0 | PIC | 결함 위치 0, 원시 보기 반쪽 선택 |
+| 14 | VDD | PVDD | 링·코어 전원 5 V | 28 | FI_POS0 | PIC | 결함 위치 0, 보기 반쪽 선택 |
 
 패드 위치와 셀은 `designs/etri050/chip/pins.csv`가 정한다.
 
@@ -76,16 +81,16 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ![코어](img/core.png)
 
-- 왼쪽 제어 블록, 가운데 SRAM 매크로, 오른쪽 디커플링 둘
+- 왼쪽 제어 블록, 가운데 SRAM 매크로, 오른쪽 디커플링 둘, 위쪽 신뢰성 모니터(카나리, RO 뱅크, 분주기)
 - 배선은 층을 나눠 같은 층끼리 엇갈리지 않게 했다. 워드라인 30개(WWL 15, RWL 15)는 제어 블록 오른쪽 핀에서 매크로 왼쪽 접점으로 간다
-- 아래 채널: S 패드 입력, 매크로로 가는 PRE_N·WD[7:0], 매크로에서 오는 SENSE[7:0]. 위 채널: 출력 6개와 N 패드 입력 3개
-- 전원 띠(metal3): VSS, VDD(N4 패드 → 제어 블록, S7 패드 → 매크로 VDD 버스), VDDW·VDDA(오른쪽 PANA 패드 → 디커플링 → 매크로)
+- 아래 채널: S 패드 입력, 매크로로 가는 PRE_N·WD[7:0], 매크로에서 오는 SENSE[7:0]. 위 채널(13트랙): 출력 6개와 모니터 신호 17개. N 패드 입력 FI_POS 셋은 카나리 왼쪽으로 곧게 올라가 맨 위 띠로 패드에 간다
+- 전원 띠(metal3): VSS, VDD(N4 패드 → 제어 블록, S7 패드 → 매크로 VDD 버스), VDDW·VDDA(오른쪽 PANA 패드 → 디커플링 → 매크로). 모니터 아래 띠: VDD(metal1, 제어 블록 vdd 스파인에서), VSS(제어 블록 gnd 스파인과 매크로 VSS 버스에서), VDDA(매크로 VDDA 버스에서)
 
 ### 4.3 제어 블록 ecc_fi_ctrl
 
 ![제어 블록](img/ctrl.png)
 
-`designs/etri050/ctrl/ecc_fi_ctrl/ecc_fi_ctrl.v`를 공개 킷의 표준셀로 합성하고 qflow로 배치·배선했다. 347셀, 489.6 × 481.05 µm, 핀 70개. 배치·배선 결과는 `ctrl/macro`에 고정해 두고 칩 조립에 그대로 쓴다.
+`designs/etri050/ctrl/ecc_fi_ctrl/ecc_fi_ctrl.v`를 공개 킷의 표준셀로 합성하고 qflow로 배치·배선했다. 364셀, 495.9 × 520.05 µm, 핀 84개. 배치·배선 결과는 `ctrl/macro`에 고정해 두고 칩 조립에 그대로 쓴다.
 
 | 기능 | 하는 일 |
 |---|---|
@@ -97,7 +102,8 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 | 기준 워드 | 주소 15는 플립플롭 8개. CLK 상승에서 쓴다 |
 | 읽기 결함 마스크 | 읽기 때 FI_MODE 01 / 10 → 센스 출력 뒤 비트 k / k, k^1을 뒤집는다(일시 오류) |
 | 신드롬·판정 | 신드롬 = 틀린 비트의 위치. 전체 패리티 불일치 → SEC = 1(1비트로 보고 정정), 신드롬 ≠ 0이고 패리티 일치 → DED = 1 |
-| 원시 보기 | 읽기 FI_MODE 11: FI_POS0 = 1이면 DOUT = {R7, R6, R5, R3}(데이터 비트), 0이면 {R4, R2, R1, R0}(검사 비트) |
+| 원시 보기 | 읽기 FI_MODE 11, FI_POS[2:1] = 00: FI_POS0 = 1이면 DOUT = {R7, R6, R5, R3}(데이터 비트), 0이면 {R4, R2, R1, R0}(검사 비트) |
+| 모니터 보기 | 읽기 FI_MODE 11, FI_POS[2:1] = 01 카나리 보기(CRD_N = 0), 10 카나리 세트(CSET = CLK), 11 RO 보기(DIN[1:0] → RO_EN, DOUT0 = RO_DIV). 4.8절 |
 
 1비트 오류는 정정되고 SEC, 2비트는 DED로 나온다. 3비트 저장 오류는 SEC-DED의 한계대로 오정정(SEC = 1, 틀린 데이터)으로 나온다.
 
@@ -154,21 +160,42 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 보존 실험은 두 패턴(값과 반전)을 모두 본다. 자세한 절차는 [spec.md](spec.md)의 측정 계획.
 
+### 4.8 신뢰성 모니터
+
+![신뢰성 모니터](img/monitor.png)
+
+| 블록 | 크기 (µm) | 하는 일 |
+|---|---|---|
+| 카나리 래치 `canary_flat` (`gen/canary.py`) | 270.0 × 76.8 | 래치 8개가 VDDA에 있다. 약한 PMOS(L 2.4–30 µm)가 넓은 NMOS의 누설을 이겨야 세트 상태가 남으므로, VDDA를 내리면 C7부터 C0까지 차례로 값을 잃는다(TT 0.575 → 0.428 V, 셀 0.387 V 위). 읽기 게이트(VDD)는 CRD_N = 0일 때만 켜진다 |
+| RO 뱅크 `robank_flat` (`gen/robank.py`) | 345.1 × 198.9 | 31단 링 INV·NAND·NOR. 한 번에 하나만 돈다. INV는 전체 속도, NAND/NOR 비는 N/P 기울기 |
+| 분주기 `ro_div_F` (`ctrl/ro_div`) | 219.6 × 150.9 | 도는 링의 탭을 256분주해 제어 블록으로(DOUT0). 링이 없으면 리셋 |
+
+| 보기 (읽기, FI_MODE 11) | FI_POS | DOUT |
+|---|---|---|
+| 카나리 보기 | 010 / 011 | CAN[3:0] / CAN[7:4] (1 = 잃음) |
+| 카나리 세트 | 100 / 101 | 같음, CLK = 1 동안 8개 모두 세트 |
+| RO 보기 | 11x | {0, 0, 0, RO_DIV}, DIN[1:0] = 00 INV, 01 NAND, 10 NOR, 11 없음 |
+
+- 카나리는 5 V에서 세트하고, VDDA를 낮춰 30 s 이상 둔 뒤 5 V로 되돌려 읽는다. 원시 보기의 셀 실패 지도와 같은 다이에서 함께 본다
+- RO는 DOUT0의 주파수 × 256. 후모의 표(verification.md 12절)와 비교해 코너를 정한다
+
 ## 5. 검증 결과
 
 최종 GDS는 `designs/etri050/chip/check_all.sh --save`가 소스에서 모든 블록과 칩을 다시 만들고 아래 검사를 모두 통과했을 때만 저장한다. 기록은 `final/check_report.txt`.
 
 | 대상 | 검사 | 도구 | 결과 |
 |---|---|---|---|
-| 제어 블록 | RTL, 게이트 수준, 고정 넷리스트 테스트벤치 | Icarus Verilog | 통과(121,616회 비교) |
+| 제어 블록 | RTL, 게이트 수준, 고정 넷리스트 테스트벤치 | Icarus Verilog | 통과(160,039회 비교, 모니터 보기 포함) |
 | 제어 블록 | 공식 DRC, 추가 규칙 | KLayout | 0 |
+| 신뢰성 모니터: 분주기 | RTL, 게이트 수준, 고정 넷리스트 테스트벤치, 공식 DRC, 추가 규칙 | Icarus Verilog, KLayout | 통과, 0, 0 |
+| 신뢰성 모니터: 카나리, RO 뱅크 | 평면 Magic DRC, LVS, 평면 GDS 공식 DRC, 추가 규칙 | Magic, Netgen, KLayout | 0, 일치, 0, 0 |
 | 8T 셀·어레이, SRAM 매크로, 디커플링 | Magic DRC, 공식 DRC, LVS, 추가 규칙 | Magic, KLayout, Netgen | 0, 0, 일치, 0 |
 | 패드 링 | 공식 DRC | KLayout | 0 |
 | 칩 전체 | 공식 DRC(킷이 ETRI Calibre 덱을 옮긴 KLayout 덱) | KLayout | 0 |
 | 칩 전체 | Calibre 덱에만 있는 73규칙 | `scripts/calibre_rules.py` | 0 |
 | 칩 전체 | 규칙 7–12, 규칙 문서 값 | `scripts/metal_rules.py` | 64, 모두 ETRI GPIO 셀 안(패드 링만 검사해도 같은 자리), 코어 0 |
 | 칩 전체 | 안테나 규칙(다이오드 몫 없이) | `scripts/antenna_rules.py` | 0 |
-| 코어 | 트랜지스터 수준 LVS | Magic 추출 + Netgen | 일치, 3,284 소자 · 1,565 넷 |
+| 코어 | 트랜지스터 수준 LVS | Magic 추출 + Netgen | 일치, 4,198 소자 · 2,001 넷 |
 | 최종 GDS | 제출 GDS 검사(셀 이름, 층, 0.01 µm 격자, 스크라이브 레인, 패드 개구, GPIO 원본, 기판 접속) | `scripts/mychip_gds_check.py` | 통과, 실패 0 · 경고 0 |
 
 모의 결과:
@@ -177,16 +204,18 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 |---|---|---|
 | 8T 셀 | 코너·온도·전압 45조건 쓰기·읽기, 보존 전압, 읽기·쓰기 Vmin | 모두 통과, 기준값은 4.7절 |
 | SRAM 매크로 | 그린 매크로 추출(기생 C × 1.5) 후 5 코너와 VDDA·VDDW 2.0 V | 240비트씩 오류 0 |
-| 칩 코어 | 최종 GDS의 코어 전체 추출(소자 3,546 + 기생 C 9,283), 쓰기·결함 주입·읽기 21주기를 ECC 모델과 비교 | 아래 표 |
+| 카나리 래치 | 보존 전압 사다리(5 코너, TT 0·125 °C), Vt 불일치, 세트, 유지, 읽기 게이트 | TT C7 0.575 → C0 0.428 V, 모든 조건에서 셀보다 28–64 mV 위 |
+| RO 뱅크·분주기 | 그린 RO 뱅크와 고정 분주기 추출(기생 C × 1.5), 5 코너와 TT 125 °C | TT INV 84.6 · NAND 73.6 · NOR 54.6 MHz, ÷256 확인 |
+| 칩 코어 | 최종 GDS의 코어 전체 추출(소자 4,472 + 기생 C 12,298), 쓰기·결함 주입·읽기 21주기와 모니터 보기 11주기를 모델과 비교 | 아래 표 |
 
-칩 코어 모의는 배열 워드, 기준 워드(주소 15), 저장 결함 1·2·3비트를 쓴 뒤 읽기 13번을 정상 읽기, 원시 보기 두 반쪽, 일시 결함 1·2비트로 나눠 하고 DOUT·SEC·DED를 ECC 모델과 비교한다. 입력은 패드의 코어 쪽에서 넣는다.
+칩 코어 모의는 배열 워드, 기준 워드(주소 15), 저장 결함 1·2·3비트를 쓴 뒤 읽기 13번을 정상 읽기, 원시 보기 두 반쪽, 일시 결함 1·2비트로 나눠 하고 DOUT·SEC·DED를 ECC 모델과 비교한다. 이어서 모니터 보기 11번(세트 전 카나리 보기, 카나리 세트, 카나리 보기, RO 보기 링마다와 없음, 마지막 정상 읽기)을 한다. 입력은 패드의 코어 쪽에서 넣는다.
 
-| 조건 | 읽기 13번 |
+| 조건 | 읽기 24번 |
 |---|---|
 | TT 27 °C, 5 V | 모두 맞음 |
 | SS 125 °C, 4.5 V | 모두 맞음 |
 | FF 0 °C, 5.5 V | 모두 맞음 |
-| TT 27 °C, VDD 5 V, VDDA = VDDW = 2.0 V | 모두 맞음 |
+| TT 27 °C, VDD 5 V, VDDA = VDDW = 2.0 V | 모두 맞음 (카나리 보기는 비교 안 함) |
 
 소스에서 칩을 한 번 더 다시 만들어 최종 GDS와 비교하면 19개 층 모두 XOR 0이다(6.6절).
 
@@ -236,7 +265,7 @@ python3 designs/etri050/gen/colper.py --check        # sram_macro (8T 셀 어레
 cd designs/etri050/sram/build && magic-etri sram_macro
 ```
 
-`sram8t`(셀), `sram_array`(어레이), `decap_vddw`, `decap_vdda`도 같은 폴더에 있다.
+`sram8t`(셀), `sram_array`(어레이), `decap_vddw`, `decap_vdda`도 같은 폴더에 있다. 카나리와 RO 뱅크는 `gen/canary.py --check`, `gen/robank.py --check`가 `designs/etri050/monitor/build`에 그린다(`magic-etri canary`, `magic-etri robank`).
 
 ### 6.5 데스크톱 없이 그림으로 보기
 
@@ -256,7 +285,7 @@ PNG는 VS Code 탐색기에서 누르면 바로 보인다(`/tmp`에 그렸다면
 # 저장소의 최종 GDS가 기록된 것과 같은지 (gunzip -k 뒤에)
 (cd designs/etri050/chip/final && sha256sum -c ecc_sram_Top.gds.sha256)
 
-# 소스에서 블록과 칩을 다시 만들고 모든 검사 (약 6분) → designs/etri050/chip/build/check_report.txt
+# 소스에서 블록과 칩을 다시 만들고 모든 검사 (약 8분) → designs/etri050/chip/build/check_report.txt
 bash designs/etri050/chip/check_all.sh
 
 # 다시 만든 GDS와 최종 GDS의 도형 비교: 층마다 XOR 면적이 0이면 같은 칩
@@ -264,7 +293,7 @@ bash designs/etri050/chip/check_all.sh
 klayout -b -r scripts/gds_xor.py -rd a=designs/etri050/chip/build/ecc_sram_Top.gds \
     -rd b=designs/etri050/chip/final/ecc_sram_Top.gds
 
-# 칩 코어 트랜지스터 모의 (추출 + ngspice, 조건 하나에 약 13분)
+# 칩 코어 트랜지스터 모의 (추출 + ngspice, 조건 하나에 약 35–85분)
 python3 designs/etri050/sim/chip/chip_sim.py
 python3 designs/etri050/sim/chip/chip_sim.py --no-extract --corner SS --temp 125 --vdd 4.5 --vdda 4.5 --vddw 4.5
 ```
@@ -277,7 +306,8 @@ python3 designs/etri050/sim/chip/chip_sim.py --no-extract --corner SS --temp 125
 | 컬럼 회로·SRAM 매크로 | `designs/etri050/gen/colper.py` | `python3 designs/etri050/gen/colper.py --check` |
 | 디커플링 | `designs/etri050/gen/decap.py` | `python3 designs/etri050/gen/decap.py --check` |
 | 제어 블록 | `designs/etri050/ctrl/` (RTL, 테스트벤치, qflow), `ctrl/macro/` (고정 결과) | `make -C designs/etri050/ctrl sim gatesim macrosim` |
+| 신뢰성 모니터 | `designs/etri050/gen/canary.py`, `gen/robank.py`, `gen/stdrow.py`, `ctrl/ro_div/` | `python3 designs/etri050/gen/canary.py --check`, `gen/robank.py --check`, `make -C designs/etri050/ctrl rodiv_sim rodiv_gatesim rodiv_macrosim` |
 | 패드 링 | `designs/etri050/chip/pins.csv`, `pad_ring.py`, `pad_gds.py` | `bash designs/etri050/chip/run_pad_ring.sh` |
 | 칩 조립 | `designs/etri050/chip/assemble.py` | `python3 designs/etri050/chip/assemble.py` |
 | 칩 검사 | `designs/etri050/chip/check_all.sh`, `core_lvs.py`, `scripts/extra_checks.sh`, `scripts/mychip_gds_check.py` | 6.6절 |
-| 모의 | `designs/etri050/sim/cell/`, `sim/post/`, `sim/chip/` | README의 실행 절 |
+| 모의 | `designs/etri050/sim/cell/`(카나리: `canary_sim.py`), `sim/post/`(RO: `ro_post.py`), `sim/chip/` | README의 실행 절 |

@@ -152,7 +152,7 @@ def chip(gds):
 def core(gds):
     f = Fig(gds, (440, 440, 1460, 1460), 1600)
     f.rect(*CTRL, YELLOW, 3)
-    f.text(715, 820, "제어 블록 ecc_fi_ctrl\n표준셀 375개 (qflow 배치·배선)\n부호기 · 결함 마스크 · 행 해독\n"
+    f.text(715, 820, "제어 블록 ecc_fi_ctrl\n표준셀 364개 (qflow 배치·배선)\n부호기 · 결함 마스크 · 행 해독\n"
            "기준 워드(주소 15) · 신드롬 · SEC/DED\n보기: 원시 · 카나리 · RO", 22, YELLOW)
     f.rect(1065, 567.4, 1246.5, 1066.3, YELLOW, 3)
     f.text(1155.75, 860, "SRAM 매크로\n8T 셀 15 × 8\n+ 컬럼 회로", 22, YELLOW)

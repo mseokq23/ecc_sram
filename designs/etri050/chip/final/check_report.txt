@@ -1,4 +1,4 @@
-ECC 8T SRAM chip check, 2026-11-03 11:59 KST, repo b0bbc97
+ECC 8T SRAM chip check, 2026-11-06 16:11 KST, repo 96670af
 kit 4b332a7 2026-11-02, KLayout 0.28.16, magic 8.3.105, ngspice-42
 
 == control block
@@ -7,6 +7,16 @@ PASS  ctrl gate-level testbench
 PASS  ctrl frozen netlist testbench
 PASS  ctrl frozen GDS official DRC (0 markers)
 PASS  ctrl frozen GDS extra checks
+== reliability monitor blocks
+PASS  ro_div RTL testbench
+PASS  ro_div gate-level testbench
+PASS  ro_div frozen netlist testbench
+PASS  canary latches (regenerated): flat Magic DRC, LVS
+PASS  RO bank (regenerated): flat Magic DRC, LVS
+PASS  ro_div.gds official DRC (0 markers)
+PASS  canary_flat.gds official DRC (0 markers)
+PASS  robank_flat.gds official DRC (0 markers)
+PASS  monitor blocks extra checks
 == SRAM blocks (regenerated)
 PASS  8T cell and 15x8 array: Magic DRC, official DRC, LVS
 PASS  SRAM macro (array + column circuits): Magic DRC, official DRC, LVS
@@ -21,8 +31,8 @@ PASS  chip extra checks (Calibre-only 73, rules 7-12, antenna)
       ecc_sram_Top.gds: 64 markers in rules 7-12 (rule document values), 0 not in the baseline
       ecc_sram_Top.gds: 0 nets over the antenna limits (rule document v1.1, no diode credit), 0 without diffusion at that step
 PASS  core LVS (transistor level, Magic + Netgen)
-      Number of devices: 3284                    
-      Number of nets: 1565                       
+      Number of devices: 4198                    
+      Number of nets: 2001                       
 PASS  submission GDS checks (mychip_gds_check.py)
 
 ALL CHECKS PASSED: designs/etri050/chip/build/ecc_sram_Top.gds

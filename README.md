@@ -5,22 +5,24 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 - 맞춤 8T SRAM 어레이 15행 × 8열 + 표준셀 기준 워드(주소 15) = 16워드, 워드마다 데이터 4비트 + 검사 4비트
 - Hamming(8,4) SEC-DED. 외부 핀으로 결함을 넣는다: 쓰기 때 1/2/3비트 저장 오류, 읽기 때 1/2비트 오류, 저장된 코드워드 원시 보기
 - 셀 전원 VDDA와 비트라인 드라이버 전원 VDDW를 따로 뺐다. 이 둘을 낮춰 보존 실패·읽기 실패·쓰기 실패 같은 **실제 물리 결함**을 만들고, ECC가 그것을 고치고 검출하는지 측정한다
+- 신뢰성 모니터: VDDA 위의 카나리 래치 8개(셀보다 높은 전압에서 차례로 값을 잃는 보존 실패 조기 경보)와 RO 뱅크(INV·NAND·NOR, 다이의 공정 코너). 새 핀 없이 읽기 모드 11의 보기로 읽는다. 설계안과 검토는 [docs/monitor.md](docs/monitor.md)
 - 제출 목표: 2027년 1차. 일정이 앞당겨지면 2026년 4차(DB 마감 12/7)
 
-사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
+사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md), 신뢰성 모니터 설계안과 검토는 [docs/monitor.md](docs/monitor.md).
 
 **최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`). 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
 
-## 진행 상황 (2026-11-03)
+## 진행 상황 (2026-11-06)
 
 | 블록 | 결과 |
 |---|---|
 | 8T 셀 회로 모의 (PDK 260820 모델) | 45조건 쓰기·읽기 통과, 보존 전압 TT 0.37 V, 읽기 Vmin(VDDA) TT 1.42 V, 쓰기 Vmin(VDDW) TT 1.86 V |
 | 8T 셀·15×8 어레이 레이아웃 | Magic DRC 0, KLayout DRC 0, LVS 일치, Calibre 전용 73규칙·금속 규칙·안테나 0 |
 | SRAM 매크로(어레이 + 컬럼 회로), 디커플링 | 같은 검사 모두 0·일치. 후모의 5 코너 + VDDA 2 V, 240비트씩 오류 0 |
-| 제어 블록 ecc_fi_ctrl | RTL·게이트·배치 후 시험 통과(121,616회 비교), 평면 LVS 일치, DRC 0, 매크로 고정 |
-| 패드 링·칩 조립 | 칩 전체 공식 DRC 0, Calibre 전용 0, 안테나 0, 코어 LVS 일치(3,284 소자), 제출 GDS 검사 통과 |
-| 칩 코어 트랜지스터 모의 (코어 전체 추출) | TT 27 °C 5 V, SS 125 °C 4.5 V, FF 0 °C 5.5 V, VDDA·VDDW 2.0 V: 쓰기·읽기·결함 주입 13번 읽기 모두 ECC 모델과 같음 |
+| 제어 블록 ecc_fi_ctrl | RTL·게이트·배치 후 시험 통과(160,039회 비교, 모니터 보기 포함), 평면 LVS 일치, DRC 0, 매크로 고정 |
+| 신뢰성 모니터 | 카나리 래치(보존 전압 사다리 TT 0.43–0.57 V, 셀 0.39 V 위)·RO 뱅크·분주기: 블록마다 DRC 0, LVS 일치, 추가 규칙 0. RO 후모의 TT INV 84.6 · NAND 73.6 · NOR 54.6 MHz |
+| 패드 링·칩 조립 | 칩 전체 공식 DRC 0, Calibre 전용 0, 안테나 0, 코어 LVS 일치(4,198 소자), 제출 GDS 검사 통과 |
+| 칩 코어 트랜지스터 모의 (코어 전체 추출) | TT 27 °C 5 V, SS 125 °C 4.5 V, FF 0 °C 5.5 V, VDDA·VDDW 2.0 V: 쓰기·읽기·결함 주입 13번과 모니터 보기 11번, 읽기 24번 모두 모델과 같음 |
 | 최종 GDS | `chip/check_all.sh --save`: 소스에서 블록과 칩을 다시 만들어 위 검사를 모두 다시 통과한 GDS를 `chip/final`에 저장 |
 
 선례로 정한 것(ETRI 문의 없이): VDDA·VDDW는 PANA PADR, 전원 패드 PVDD 2·PVSS 3, 출력 POB8 — 근거는 docs/verification.md 7절.
@@ -45,14 +47,16 @@ designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
   gen/colper.py           어레이 아래 컬럼 회로, 어레이와 합친 SRAM 매크로(sram_macro)
   gen/decap.py            VDDW·VDDA 디커플링(MOS 커패시터)
-  sim/cell/               셀·컬럼 트랜지스터 수준 모의(코너, 보존 전압, 읽기 Vmin, 보존 시간)
+  gen/canary.py           카나리 래치 블록(VDDA), gen/robank.py: RO 뱅크. 둘 다 gen/stdrow.py로 킷 셀을 줄지어 놓고 배선
+  sim/cell/               셀·컬럼 트랜지스터 수준 모의(코너, 보존 전압, 읽기 Vmin, 보존 시간), canary_sim.py: 카나리
   sim/post/array_post.py  그린 어레이(또는 --macro: 매크로 전체)를 추출해 쓰기·읽기 모의
-  ctrl/                   제어 블록: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정
-  ctrl/macro/             고정한 제어 블록(GDS, 넷리스트, 핀 좌표)
+  sim/post/ro_post.py     그린 RO 뱅크와 분주기를 추출해 링 주파수(코너)와 ÷256 확인
+  ctrl/                   제어 블록: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정. ro_div/: RO 분주기
+  ctrl/macro/             고정한 제어 블록과 분주기(GDS, 넷리스트, 핀 좌표)
   chip/                   패드 링(pins.csv, run_pad_ring.sh), 칩 조립(assemble.py), 코어 LVS(core_lvs.py)
   chip/check_all.sh       소스에서 전체를 다시 만들고 모든 검사, --save면 통과한 GDS를 chip/final에 저장
   chip/final/             최종 GDS(gzip), sha256, 재검사 기록
-  sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입을 ECC 모델과 비교)
+  sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입·모니터 보기를 모델과 비교)
 docs/                     안내(guide.md), 사양, 검증 기록, 그림(img/)
 ```
 
@@ -102,10 +106,19 @@ python3 designs/etri050/sim/post/array_post.py --macro
 # 디커플링
 python3 designs/etri050/gen/decap.py --check
 
+# 신뢰성 모니터: 카나리 래치, RO 뱅크(생성 + Magic DRC + LVS), 카나리 모의, RO 후모의
+python3 designs/etri050/gen/canary.py --check
+python3 designs/etri050/gen/robank.py --check
+python3 designs/etri050/sim/cell/canary_sim.py ladder      # mc, snm, set, hold, readout
+python3 designs/etri050/sim/post/ro_post.py
+
 # 제어 블록
 make -C designs/etri050/ctrl sim synth gatesim   # RTL, 합성, 게이트 수준
+make -C designs/etri050/ctrl mutants             # 모니터 보기를 틀리게 만든 RTL 9개가 모두 시험에 걸리는지
 make -C designs/etri050/ctrl flow qflowsim       # qflow 배치·배선, 검사, 배치 후 넷리스트 시험
 bash designs/etri050/ctrl/freeze_macro.sh        # ctrl/macro 갱신
+make -C designs/etri050/ctrl rodiv_sim rodiv_gatesim rodiv_flow rodiv_qflowsim   # 분주기
+TOP=ro_div bash designs/etri050/ctrl/freeze_macro.sh
 bash scripts/extra_checks.sh designs/etri050/ctrl/build/qflow/layout/ecc_fi_ctrl_F_grid.gds
 
 # 패드 링, 칩 조립과 검사

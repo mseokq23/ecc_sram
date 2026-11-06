@@ -7,6 +7,7 @@
 #   make flow      place and route with qflow (run_flow.sh)
 #   make qflowsim  the testbench on the netlist qflow synthesized (build/qflow/synthesis)
 #   make macrosim  the testbench on the frozen macro's gate netlist (macro/ecc_fi_ctrl.v, what the chip uses)
+#   make mutants   nine wrong versions of the RTL (monitor views) must all fail the testbench (mutants.py)
 # The ring-oscillator divider ro_div (ro_div/ro_div.v, tb/tb_ro_div.v) has the same steps (its RTL
 # instantiates two kit cells, so its RTL simulation reads the kit cell models too):
 #   make rodiv_sim rodiv_synth rodiv_gatesim rodiv_flow rodiv_qflowsim rodiv_macrosim
@@ -20,7 +21,7 @@ YOSYS ?= yosys
 TOP   := ecc_fi_ctrl
 NOX   := $(B)/nox.lib
 
-.PHONY: all sim synth gatesim flow qflowsim macrosim proposal clean check-kit \
+.PHONY: all sim synth gatesim flow qflowsim macrosim mutants proposal clean check-kit \
         rodiv_sim rodiv_synth rodiv_gatesim rodiv_flow rodiv_qflowsim rodiv_macrosim
 all: sim synth gatesim proposal rodiv_sim rodiv_gatesim
 
@@ -87,6 +88,9 @@ rodiv_macrosim: check-kit | $(B)
 	iverilog -g2005 -Ttyp -o $(B)/tb_rodiv_macro.vvp tb/tb_ro_div.v $(B)/ro_div_macro.v $(CELLV)
 	vvp -n $(B)/tb_rodiv_macro.vvp | tee $(B)/sim_rodiv_macro.log
 	@grep -q 'TB RESULT: PASS' $(B)/sim_rodiv_macro.log
+
+mutants: | $(B)
+	python3 mutants.py
 
 # the first proposal's RTL (8 words) against an independent Hamming model: 36,864 reads
 proposal: | $(B)
