@@ -8,7 +8,7 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 - 신뢰성 모니터: VDDA 위의 카나리 래치 8개(셀보다 높은 전압에서 차례로 값을 잃는 보존 실패 조기 경보)와 RO 뱅크(INV·NAND·NOR, 다이의 공정 코너). 새 핀 없이 읽기 모드 11의 보기로 읽는다. 설계안과 검토는 [docs/monitor.md](docs/monitor.md)
 - 제출 목표: 2027년 1차. 일정이 앞당겨지면 2026년 4차(DB 마감 12/7)
 
-사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md), 신뢰성 모니터 설계안과 검토는 [docs/monitor.md](docs/monitor.md).
+사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md), 신뢰성 모니터 설계안과 검토는 [docs/monitor.md](docs/monitor.md), 회로 구조와 한 주기의 동작(블록도, 쓰기·읽기 파형, 결함 주입 예, 모니터 동작)은 [docs/operation.md](docs/operation.md).
 
 **최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`). 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
 
@@ -42,6 +42,7 @@ scripts/
   fill_notches.py, snap_grid.py   qflow 결과의 금속 틈 메우기, 0.01 µm 격자 맞추기
   mychip_gds_check.py     제출 GDS 자체 검사(층, 격자, 스크라이브 레인, 패드 개구 …)
   render_gds.py, doc_figures.py   GDS를 PNG로 그리기, docs/img 그림 다시 그리기
+  doc_diagrams.py         operation.md의 블록도·회로도·파형(ngspice) 그리기
   gds_xor.py              두 GDS의 도형 비교(층마다 XOR 면적)
 designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
@@ -57,7 +58,7 @@ designs/etri050/
   chip/check_all.sh       소스에서 전체를 다시 만들고 모든 검사, --save면 통과한 GDS를 chip/final에 저장
   chip/final/             최종 GDS(gzip), sha256, 재검사 기록
   sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입·모니터 보기를 모델과 비교)
-docs/                     안내(guide.md), 사양, 검증 기록, 그림(img/)
+docs/                     안내(guide.md), 사양, 검증 기록, 회로 동작(operation.md), 그림(img/)
 ```
 
 PDK 파일(모델, 덱 원본, GPIO, 패드 프레임)은 저장소에 넣지 않는다. 모델은 `scripts/get-models.sh`가 킷에 들어 있는 PDK 압축에서 꺼내고, `.gitignore`가 그 폴더를 뺀다. 표준셀은 공개 킷(GPL-3.0)의 것이고 `ctrl/macro`에는 그 셀로 만든 배치 결과만 있다.

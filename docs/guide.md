@@ -1,6 +1,6 @@
 # ECC 8T SRAM 칩 안내
 
-마이칩(ETRI 0.5 µm CMOS) 제출용 최종 GDS와 그 내용을 정리한 문서다. 칩의 주제, 각 부분이 하는 일, 검증 결과, Codespaces에서 결과물을 여는 방법을 담았다. 세부 사양은 [spec.md](spec.md), 단계별 검증 과정과 판단은 [verification.md](verification.md)에 있다.
+마이칩(ETRI 0.5 µm CMOS) 제출용 최종 GDS와 그 내용을 정리한 문서다. 칩의 주제, 각 부분이 하는 일, 검증 결과, Codespaces에서 결과물을 여는 방법을 담았다. 세부 사양은 [spec.md](spec.md), 단계별 검증 과정과 판단은 [verification.md](verification.md), 회로 구조와 한 주기의 동작은 [operation.md](operation.md)에 있다.
 
 ## 1. 최종 결과물
 
@@ -17,7 +17,7 @@
 ```
 ecc_sram_Top
 ├── ecc_sram_core          코어 (chip/assemble.py가 조립)
-│   ├── ecc_fi_ctrl_F      제어 블록: 표준셀 364개, qflow 배치·배선
+│   ├── ecc_fi_ctrl_F      제어 블록: 합성 364셀(배치 후 버퍼 포함 485셀), qflow 배치·배선
 │   ├── sram_macro         8T 셀 어레이 15 × 8 + 컬럼 회로
 │   ├── decap_vddw         VDDW 디커플링 57 pF
 │   ├── decap_vdda         VDDA 디커플링 28.5 pF
@@ -90,7 +90,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ![제어 블록](img/ctrl.png)
 
-`designs/etri050/ctrl/ecc_fi_ctrl/ecc_fi_ctrl.v`를 공개 킷의 표준셀로 합성하고 qflow로 배치·배선했다. 364셀, 495.9 × 520.05 µm, 핀 84개. 배치·배선 결과는 `ctrl/macro`에 고정해 두고 칩 조립에 그대로 쓴다.
+`designs/etri050/ctrl/ecc_fi_ctrl/ecc_fi_ctrl.v`를 공개 킷의 표준셀로 합성하고 qflow로 배치·배선했다. 합성 364셀(배치 후 버퍼 포함 485셀), 495.9 × 520.05 µm, 핀 84개. 배치·배선 결과는 `ctrl/macro`에 고정해 두고 칩 조립에 그대로 쓴다.
 
 | 기능 | 하는 일 |
 |---|---|
@@ -111,7 +111,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ![SRAM 매크로](img/macro.png)
 
-- 8T 셀 15행 × 8열(셀 18.0 × 27.3 µm) 아래에 열마다 컬럼 회로를 붙였다. 181.5 × 498.3 µm
+- 8T 셀 15행 × 8열(셀 18.0 × 27.3 µm) 아래에 열마다 컬럼 회로를 붙였다. 181.5 × 498.9 µm
 - 셀은 VDDA, 읽기 회로는 VDD, 쓰기 드라이버는 VDDW. 세 전원을 매크로 오른쪽 버스로 따로 받는다
 - 레이아웃은 `gen/sram8t.py`, `gen/colper.py`가 사각형 좌표를 계산해 Magic으로 그린다. 같은 코드가 LVS용 넷리스트도 쓴다
 
@@ -166,7 +166,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 | 블록 | 크기 (µm) | 하는 일 |
 |---|---|---|
-| 카나리 래치 `canary_flat` (`gen/canary.py`) | 270.0 × 76.8 | 래치 8개가 VDDA에 있다. 약한 PMOS(L 2.4–30 µm)가 넓은 NMOS의 누설을 이겨야 세트 상태가 남으므로, VDDA를 내리면 C7부터 C0까지 차례로 값을 잃는다(TT 0.575 → 0.428 V, 셀 0.387 V 위). 읽기 게이트(VDD)는 CRD_N = 0일 때만 켜진다 |
+| 카나리 래치 `canary_flat` (`gen/canary.py`) | 270.6 × 76.8 | 래치 8개가 VDDA에 있다. 약한 PMOS(L 2.4–30 µm)가 넓은 NMOS의 누설을 이겨야 세트 상태가 남으므로, VDDA를 내리면 C7부터 C0까지 차례로 값을 잃는다(TT 0.575 → 0.428 V, 셀 0.387 V 위). 읽기 게이트(VDD)는 CRD_N = 0일 때만 켜진다 |
 | RO 뱅크 `robank_flat` (`gen/robank.py`) | 345.1 × 198.9 | 31단 링 INV·NAND·NOR. 한 번에 하나만 돈다. INV는 전체 속도, NAND/NOR 비는 N/P 기울기 |
 | 분주기 `ro_div_F` (`ctrl/ro_div`) | 219.6 × 150.9 | 도는 링의 탭을 256분주해 제어 블록으로(DOUT0). 링이 없으면 리셋 |
 
@@ -247,7 +247,7 @@ klayout-etri designs/etri050/chip/final/ecc_sram_Top.gds
 - 왼쪽 Cells 창에서 셀을 오른쪽 클릭 → **Show As New Top**으로 그 블록만 본다(`ecc_fi_ctrl_F`, `sram_macro`, `decap_vddw`, `decap_vdda`, `ecc_sram_Pad`)
 - 오른쪽 Layers 창에서 층을 켜고 끈다. MET3(36/0)을 끄면 그 아래 배선과 셀이 잘 보인다
 - 길이는 도구 막대의 Ruler로 잰다
-- 좌표(µm): 패드 틀 (97.5, 97.5)–(1802.5, 1802.5), 코어 (442, 442)–(1458, 1458), 제어 블록 (470, 560)–(959.6, 1041.15), SRAM 매크로 (1065, 567.4)–(1246.5, 1066.3)
+- 좌표(µm): 패드 틀 (97.5, 97.5)–(1802.5, 1802.5), 코어 (442, 442)–(1458, 1458), 제어 블록 (470, 560)–(965.9, 1080.05), SRAM 매크로 (1065, 567.4)–(1246.5, 1066.3)
 
 공식 DRC를 직접 돌려 결과를 KLayout에서 보려면:
 
@@ -269,7 +269,7 @@ cd designs/etri050/sram/build && magic-etri sram_macro
 
 ### 6.5 데스크톱 없이 그림으로 보기
 
-- 이 문서의 그림은 `python3 scripts/doc_figures.py`가 최종 GDS와 블록 GDS에서 다시 그린다(`docs/img`)
+- 이 문서의 그림은 `python3 scripts/doc_figures.py`가 최종 GDS와 블록 GDS에서 다시 그린다(`docs/img`). operation.md의 블록도·회로도·파형은 `python3 scripts/doc_diagrams.py`(파형은 ngspice와 PDK 모델 필요)
 - 원하는 범위만 PNG로 그리기:
 
 ```bash
