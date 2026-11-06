@@ -1,0 +1,14 @@
+padgroup Taps permute
+twpin_TAP[0]             nonfixed
+twpin_TAP[1]             nonfixed
+twpin_TAP[2]             nonfixed
+restrict side B
+sidespace 0.02 0.14
+
+padgroup Ctrl permute
+twpin_EN[0]              nonfixed
+twpin_EN[1]              nonfixed
+twpin_EN[2]              nonfixed
+twpin_DIV                nonfixed
+restrict side B
+sidespace 0.18 0.36

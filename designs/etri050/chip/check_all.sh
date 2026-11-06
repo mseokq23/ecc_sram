@@ -6,7 +6,9 @@
 #
 # Blocks   control block: RTL, gate-level and frozen-netlist testbenches; frozen GDS: official KLayout
 #          DRC + extra checks. Cell, array, SRAM macro, decoupling: regenerated, Magic DRC, official
-#          KLayout DRC, Netgen LVS (etri-check) + extra checks
+#          KLayout DRC, Netgen LVS (etri-check) + extra checks. Reliability monitor: divider ro_div as the
+#          control block; canary latches and RO bank regenerated, flattened Magic DRC, LVS, official
+#          KLayout DRC of the flat GDS + extra checks
 # Ring     pad ring with ETRI's GPIO cells, official KLayout DRC
 # Chip     assembly; official KLayout DRC (the kit's conversion of ETRI's Calibre deck); the 73 Calibre
 #          checks the KLayout deck leaves out; rules 7-12 with the rule document values; antenna rules;
@@ -60,6 +62,21 @@ gzip -dc "$D/ctrl/macro/ecc_fi_ctrl.gds.gz" > "$B/check/ecc_fi_ctrl.gds"
 n=$(drc_count "$B/check/ecc_fi_ctrl.gds")
 if [ "$n" = "0" ]; then say "PASS  ctrl frozen GDS official DRC (0 markers)"; else say "FAIL  ctrl frozen GDS official DRC ($n markers)"; fail=1; fi
 check "ctrl frozen GDS extra checks" "extra checks: all clean" bash scripts/extra_checks.sh "$B/check/ecc_fi_ctrl.gds"
+
+say "== reliability monitor blocks"
+check "ro_div RTL testbench" "TB RESULT: PASS" make -C designs/etri050/ctrl rodiv_sim
+check "ro_div gate-level testbench" "TB RESULT: PASS" make -C designs/etri050/ctrl rodiv_gatesim
+check "ro_div frozen netlist testbench" "TB RESULT: PASS" make -C designs/etri050/ctrl rodiv_macrosim
+gzip -dc "$D/ctrl/macro/ro_div.gds.gz" > "$B/check/ro_div.gds"
+check "canary latches (regenerated): flat Magic DRC, LVS" "LVS MATCH" python3 designs/etri050/gen/canary.py --check
+check "RO bank (regenerated): flat Magic DRC, LVS" "LVS MATCH" python3 designs/etri050/gen/robank.py --check
+MB="$D/monitor/build"
+for g in "$B/check/ro_div.gds" "$MB/canary_flat.gds" "$MB/robank_flat.gds"; do
+  n=$(drc_count "$g")
+  if [ "$n" = "0" ]; then say "PASS  $(basename "$g") official DRC (0 markers)"; else say "FAIL  $(basename "$g") official DRC ($n markers)"; fail=1; fi
+done
+check "monitor blocks extra checks" "extra checks: all clean" bash scripts/extra_checks.sh \
+  "$B/check/ro_div.gds" "$MB/canary_flat.gds" "$MB/robank_flat.gds"
 
 say "== SRAM blocks (regenerated)"
 check "8T cell and 15x8 array: Magic DRC, official DRC, LVS" "PASS  ETRI-CHECK sram_array" \

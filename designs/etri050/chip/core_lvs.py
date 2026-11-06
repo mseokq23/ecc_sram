@@ -11,6 +11,7 @@ writes a flat netlist.
 Reference side, written from the design and not from the drawing:
   control block   ctrl/macro/ecc_fi_ctrl.spc + the kit's standard cell netlist (khu_etri050_stdcells.spice)
   SRAM macro      gen/colper.py (sram/build/sch/sram_macro.spice), decoupling gen/decap.py
+  monitor         gen/canary.py and gen/robank.py (monitor/build/sch), ctrl/macro/ro_div.spc
   chip            the pad pins (pins.csv) and the block-to-block nets below
 Netgen compares the two with the kit's setup (etri050_setup.tcl). Results: build/lvs/core_lvs.out.
 """
@@ -84,20 +85,42 @@ def bus(name):
     return {"vdd": "VDD", "gnd": "VSS", "DED_FLAG": "DED", "SEC_FLAG": "SEC"}.get(name, re.sub(r"\[(\d+)\]", r"\1", name))
 
 
+def ports(text, name):
+    """Port list of subcircuit name (continuation lines joined)."""
+    head = re.search(r"^\.subckt %s (.*?)\n(?!\+)" % re.escape(name), text, re.S | re.M)
+    return head.group(1).replace("\n+", " ").split()
+
+
+def subckt(text, name):
+    """Just the definition of subcircuit name (the monitor netlists also carry the kit cells they use, which the
+    kit's own netlist already defines)."""
+    return re.search(r"^\.subckt %s .*?^\.ends.*?$" % re.escape(name), text, re.S | re.M).group(0)
+
+
 def reference(pins):
     ctrl = (D / "ctrl/macro/ecc_fi_ctrl.spc").read_text()
-    head = re.search(r"^\.subckt ecc_fi_ctrl (.*?)\n(?!\+)", ctrl, re.S | re.M)
-    cports = head.group(1).replace("\n+", " ").split()
+    cports = ports(ctrl, "ecc_fi_ctrl")
+    div = (D / "ctrl/macro/ro_div.spc").read_text()
+    dports = ports(div, "ro_div")
     macro = (D / "sram/build/sch/sram_macro.spice").read_text()
     mports = re.search(r"^\.subckt sram_macro (.*)$", macro, re.M).group(1).split()
+    can = (D / "monitor/build/sch/canary.spice").read_text()
+    rob = (D / "monitor/build/sch/robank.spice").read_text()
+    # monitor nets: RO_EN0..2 to the RO bank and the divider, TAP0..2 from the rings to the divider, RO_DIV back
+    rob_net = {f"en{k}": f"RO_EN{k}" for k in range(3)} | {f"in{k}": f"TAP{k}" for k in range(3)}
+    div_net = {"DIV": "RO_DIV"} | {f"EN[{k}]": f"RO_EN{k}" for k in range(3)} | {f"TAP[{k}]": f"TAP{k}" for k in range(3)}
     parts = [f"* reference netlist of the chip core (written by core_lvs.py)",
-             (KIT / "digital_ETRI/khu_etri050_stdcells.spice").read_text(), ctrl, macro,
+             (KIT / "digital_ETRI/khu_etri050_stdcells.spice").read_text(), ctrl, div, macro,
              (D / "sram/build/sch/decap_vddw.spice").read_text(), (D / "sram/build/sch/decap_vdda.spice").read_text(),
+             subckt(can, "canary"), subckt(rob, "robank"),
              f".subckt ecc_sram_core {' '.join(pins)}",
              "Xctrl " + " ".join(bus(p) for p in cports) + " ecc_fi_ctrl",
              "Xmacro " + " ".join(mports) + " sram_macro",
              "Xdw VDDW VSS decap_vddw",
              "Xda VDDA VSS decap_vdda",
+             "Xcan " + " ".join(ports(can, "canary")) + " canary",
+             "Xro " + " ".join(rob_net.get(p, p) for p in ports(rob, "robank")) + " robank",
+             "Xdiv " + " ".join(div_net.get(p, bus(p)) for p in dports) + " ro_div",
              ".ends"]
     ref = L / "core_ref.spice"
     ref.write_text("\n".join(parts) + "\n")

@@ -1,0 +1,10 @@
+# ro_div pins: name layer x1 y1 x2 y2 (um, coordinates of GDS cell ro_div_F before the 0.01 um snap; flabels of qflow layout/ro_div.mag scaled by its magscale)
+DIV metal2 98.550 -3.450 99.450 -2.550
+EN[0] metal2 50.550 -3.450 51.450 -2.550
+EN[1] metal2 56.550 -3.450 57.450 -2.550
+EN[2] metal2 62.550 -3.450 63.450 -2.550
+TAP[0] metal2 23.550 -3.450 24.450 -2.550
+TAP[1] metal2 17.550 -3.450 18.450 -2.550
+TAP[2] metal2 11.550 -3.450 12.450 -2.550
+gnd metal1 201.300 0.300 210.300 0.300
+vdd metal1 -9.300 0.300 -0.300 0.300

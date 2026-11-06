@@ -7,6 +7,9 @@
 #   make flow      place and route with qflow (run_flow.sh)
 #   make qflowsim  the testbench on the netlist qflow synthesized (build/qflow/synthesis)
 #   make macrosim  the testbench on the frozen macro's gate netlist (macro/ecc_fi_ctrl.v, what the chip uses)
+# The ring-oscillator divider ro_div (ro_div/ro_div.v, tb/tb_ro_div.v) has the same steps (its RTL
+# instantiates two kit cells, so its RTL simulation reads the kit cell models too):
+#   make rodiv_sim rodiv_synth rodiv_gatesim rodiv_flow rodiv_qflowsim rodiv_macrosim
 REPO  := $(abspath ../../..)
 B     := build
 KIT   ?= $(firstword $(wildcard $(REPO)/.pdk/ETRI050_DesignKit) $(wildcard $(HOME)/ETRI050_DesignKit))
@@ -17,8 +20,9 @@ YOSYS ?= yosys
 TOP   := ecc_fi_ctrl
 NOX   := $(B)/nox.lib
 
-.PHONY: all sim synth gatesim flow qflowsim macrosim proposal clean check-kit
-all: sim synth gatesim proposal
+.PHONY: all sim synth gatesim flow qflowsim macrosim proposal clean check-kit \
+        rodiv_sim rodiv_synth rodiv_gatesim rodiv_flow rodiv_qflowsim rodiv_macrosim
+all: sim synth gatesim proposal rodiv_sim rodiv_gatesim
 
 check-kit:
 	@test -f "$(LIB)" || { echo "ETRI kit not found (KIT=$(KIT)); run scripts/setup-etri050.sh"; exit 1; }
@@ -54,6 +58,35 @@ macrosim: check-kit | $(B)
 	iverilog -g2005 -Ttyp -o $(B)/tb_macro.vvp tb/tb_$(TOP).v $(B)/$(TOP)_macro.v $(CELLV)
 	vvp -n $(B)/tb_macro.vvp | tee $(B)/sim_macro.log
 	@grep -q 'TB RESULT: PASS' $(B)/sim_macro.log
+
+rodiv_sim: | $(B)
+	iverilog -g2005 -o $(B)/tb_rodiv_rtl.vvp tb/tb_ro_div.v ro_div/ro_div.v $(CELLV)
+	vvp -n $(B)/tb_rodiv_rtl.vvp | tee $(B)/sim_rodiv_rtl.log
+	@grep -q 'TB RESULT: PASS' $(B)/sim_rodiv_rtl.log
+
+rodiv_synth: $(NOX)
+	$(YOSYS) -q -l $(B)/synth_rodiv.log -p "read_liberty -lib $(NOX); read_verilog ro_div/ro_div.v; synth -top ro_div -flatten; dfflibmap -liberty $(NOX); abc -liberty $(NOX); opt_clean; stat -liberty $(NOX); write_verilog -noattr $(B)/ro_div_syn.v"
+	python3 cell_area.py $(B)/ro_div_syn.v $(LEF) ro_div | tee $(B)/area_rodiv.txt
+
+rodiv_gatesim: rodiv_synth
+	iverilog -g2005 -Ttyp -o $(B)/tb_rodiv_gate.vvp tb/tb_ro_div.v $(B)/ro_div_syn.v $(CELLV)
+	vvp -n $(B)/tb_rodiv_gate.vvp | tee $(B)/sim_rodiv_gate.log
+	@grep -q 'TB RESULT: PASS' $(B)/sim_rodiv_gate.log
+
+rodiv_flow: check-kit
+	TOP=ro_div bash run_flow.sh
+
+rodiv_qflowsim: check-kit
+	python3 strip_port_wires.py $(B)/qflow_ro_div/synthesis/ro_div.rtlnopwr.v $(B)/ro_div_qflow.v
+	iverilog -g2005 -Ttyp -o $(B)/tb_rodiv_qflow.vvp tb/tb_ro_div.v $(B)/ro_div_qflow.v $(CELLV)
+	vvp -n $(B)/tb_rodiv_qflow.vvp | tee $(B)/sim_rodiv_qflow.log
+	@grep -q 'TB RESULT: PASS' $(B)/sim_rodiv_qflow.log
+
+rodiv_macrosim: check-kit | $(B)
+	python3 strip_port_wires.py macro/ro_div.v $(B)/ro_div_macro.v
+	iverilog -g2005 -Ttyp -o $(B)/tb_rodiv_macro.vvp tb/tb_ro_div.v $(B)/ro_div_macro.v $(CELLV)
+	vvp -n $(B)/tb_rodiv_macro.vvp | tee $(B)/sim_rodiv_macro.log
+	@grep -q 'TB RESULT: PASS' $(B)/sim_rodiv_macro.log
 
 # the first proposal's RTL (8 words) against an independent Hamming model: 36,864 reads
 proposal: | $(B)

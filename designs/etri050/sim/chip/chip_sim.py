@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Transistor-level simulation of the whole chip core as drawn: the control block, the SRAM macro and the
-decoupling, extracted together from build/lvs/ecc_sram_core_lvs.gds (chip/core_lvs.py) with Magic, devices
-and parasitic capacitance (x CAP_SCALE), official PDK models. Inputs are driven at the core side of the pads.
+"""Transistor-level simulation of the whole chip core as drawn: the control block, the SRAM macro, the
+decoupling and the reliability monitor (canary latches, RO bank, divider), extracted together from
+build/lvs/ecc_sram_core_lvs.gds (chip/core_lvs.py) with Magic, devices and parasitic capacitance
+(x CAP_SCALE), official PDK models. Inputs are driven at the core side of the pads.
 
   python3 designs/etri050/sim/chip/chip_sim.py [--corner TT --temp 27 --vdd 5 --vdda 5 --vddw 5]
   python3 designs/etri050/sim/chip/chip_sim.py --no-extract --corner SS --temp 125 --vdd 4.5 --vdda 4.5 --vddw 4.5
@@ -9,8 +10,13 @@ and parasitic capacitance (x CAP_SCALE), official PDK models. Inputs are driven 
 
 The sequence writes array words, the standard-cell reference word (address 15) and words with stored
 faults, then reads them back in every read mode; each read is compared with a model of the ECC
-(Hamming(8,4) SEC-DED, fault masks k, k^1, k^2). CLK period 200 ns: inputs change 5 ns after CLK falls,
-CLK = 1 for the second half, outputs are sampled 5 ns before CLK falls.
+(Hamming(8,4) SEC-DED, fault masks k, k^1, k^2). Then the monitor views (FI_MODE = 11, read): the canary
+view before any set (power-up state, shown, not compared), the canary set (CSET pulse while CLK = 1) on both
+halves, the canary view (all eight kept: 0000), the ring-oscillator view for each ring and for none (DOUT =
+0001: DIV stays 1 for the first 128 ring periods), and a normal read after them. SEC / DED come from the
+addressed word in every view. CLK period 200 ns: inputs change 5 ns after CLK falls, CLK = 1 for the second
+half, outputs are sampled 5 ns before CLK falls. With VDDA below VDD the canary views are shown, not compared:
+the read-out gates are specified at VDDA = VDD only.
 """
 from __future__ import annotations
 
@@ -51,7 +57,9 @@ def mask(mode, k, write):
     return {1: h1, 2: h2, 3: h3 if write else 0}.get(mode, 0)
 
 
-def read_model(stored, mode, k):
+def read_model(stored, mode, k, can=None):
+    """(DOUT, SEC, DED) of a read; in the monitor views (mode 3, FI_POS[2:1] != 00) DOUT is the canary half
+    (can: CAN[7:0], None when not known: not compared) or {000, DIV} with DIV = 1."""
     r = stored ^ mask(mode, k, False)
     bit = lambda i: (r >> i) & 1
     s = 0
@@ -60,6 +68,11 @@ def read_model(stored, mode, k):
             s ^= i
     q = bin(r).count("1") & 1
     c = r ^ (1 << s) if q else r
+    view = k >> 1 if mode == 3 else 0
+    if mode == 3 and view in (1, 2):
+        return (None if can is None else (can >> 4 if k & 1 else can) & 0xF), q, int(s != 0 and not q)
+    if mode == 3 and view == 3:
+        return 0x1, q, int(s != 0 and not q)
     if mode == 3:
         dout = [bit(3), bit(5), bit(6), bit(7)] if k & 1 else [bit(0), bit(1), bit(2), bit(4)]
     else:
@@ -73,6 +86,9 @@ SEQ = [  # (op, addr, data, fi_mode, fi_pos)
     ("R", 0, 0, 0, 0), ("R", 5, 0, 0, 0), ("R", 14, 0, 0, 0), ("R", 15, 0, 0, 0),
     ("R", 9, 0, 0, 0), ("R", 9, 0, 3, 1), ("R", 9, 0, 3, 0), ("R", 12, 0, 0, 0), ("R", 7, 0, 0, 0),
     ("R", 0, 0, 1, 5), ("R", 0, 0, 2, 4), ("R", 15, 0, 2, 1), ("W", 0, 0x5, 0, 0), ("R", 0, 0, 0, 0),
+    # monitor views (FI_MODE 11): canary view before a set, set (both halves), view; RO view per ring, none
+    ("R", 5, 0, 3, 2), ("R", 5, 0, 3, 3), ("R", 5, 0, 3, 4), ("R", 5, 0, 3, 5), ("R", 5, 0, 3, 2), ("R", 5, 0, 3, 3),
+    ("R", 5, 0x0, 3, 6), ("R", 5, 0x1, 3, 7), ("R", 5, 0x2, 3, 6), ("R", 5, 0x3, 3, 7), ("R", 5, 0, 0, 0),
 ]
 
 
@@ -134,6 +150,8 @@ def deck(net, ports, a):
     wave = {n: [] for n in INPUTS}
     samples, model = [], {}
     stored = {}
+    can = None                                   # canary state known after the first set of each half
+    set_halves = set()
     for i, (op, addr, data, mode, k) in enumerate(SEQ):
         t0 = i * T
         val = dict(WE=int(op == "W"), **{f"ADDR{j}": (addr >> j) & 1 for j in range(4)},
@@ -146,7 +164,13 @@ def deck(net, ports, a):
         if op == "W":
             stored[addr] = encode(data) ^ mask(mode, k, True)
         else:
-            samples.append((i, t0 + T - 5e-9, read_model(stored[addr], mode, k), (addr, mode, k)))
+            if mode == 3 and k >> 1 == 2:            # set view: this half is set during this read
+                set_halves.add(k & 1)
+                can = 0 if set_halves == {0, 1} else can
+            known = can if can is not None else (0 if (mode == 3 and k >> 1 in (1, 2) and k & 1 in set_halves) else None)
+            if a.vdda < a.vdd - 1e-6:                # canaries are read at VDDA = VDD only (spec.md): not compared
+                known = None
+            samples.append((i, t0 + T - 5e-9, read_model(stored[addr], mode, k, known), (addr, mode, k)))
     t_end = len(SEQ) * T
     wave["CLK"].append((t_end, 0))
     L = [f"* chip core {a.corner} {a.temp}C VDD {a.vdd} VDDA {a.vdda} VDDW {a.vddw}",
@@ -202,6 +226,7 @@ def main(argv=None) -> int:
     # ngspice prints measurement names in lower case
     vals = {m[1].lower(): float(m[2]) for m in re.finditer(r"^(s\d+_\w+)\s*=\s*([-\d.eE+]+)", log, re.M)}
     bad = 0
+    views = {0: "raw", 1: "canary", 2: "canary set", 3: "RO"}
     for i, ts, (dout, sec, ded), (addr, mode, k) in samples:
         got = [vals.get(f"s{i}_{n}".lower()) for n in OUTPUTS]
         if None in got:
@@ -210,11 +235,13 @@ def main(argv=None) -> int:
             continue
         bits = [int(v > a.vdd / 2) for v in got]
         g_dout = sum(b << j for j, b in enumerate(bits[:4]))
-        ok = (g_dout, bits[4], bits[5]) == (dout, sec, ded)
+        ok = (bits[4], bits[5]) == (sec, ded) and (dout is None or g_dout == dout)
         bad += not ok
         dev = max(min(abs(v), abs(a.vdd - v)) for v in got)
-        print(f"read addr {addr:2d} mode {mode} pos {k}: DOUT {g_dout:X} SEC {bits[4]} DED {bits[5]}"
-              f"  expected {dout:X} {sec} {ded}  {'ok' if ok else 'WRONG'}  (outputs at most {dev:.3f} V off a rail)")
+        what = f"mode {mode} pos {k}" + (f" ({views[k >> 1]} view)" if mode == 3 else "")
+        exp = "-" if dout is None else f"{dout:X}"
+        print(f"read addr {addr:2d} {what}: DOUT {g_dout:X} SEC {bits[4]} DED {bits[5]}"
+              f"  expected {exp} {sec} {ded}  {'ok' if ok else 'WRONG'}  (outputs at most {dev:.3f} V off a rail)")
     print(f"{tag}: {len(samples)} reads, {bad} wrong")
     return 0 if bad == 0 else 1
 

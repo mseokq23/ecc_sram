@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Figures for docs/guide.md, drawn from the GDS files with KLayout (scripts/render_gds.py) and labelled with
-Pillow: the final chip with its pins, the core, the SRAM macro, the column circuits, the 8T cell and the
-control block.
+Pillow: the final chip with its pins, the core, the reliability monitor over the top channel, the SRAM macro,
+the column circuits, the 8T cell and the control block.
 
   python3 scripts/doc_figures.py              # -> docs/img/*.png
 
@@ -34,6 +34,10 @@ FONTS = [("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 1),
 WHITE, GREY, YELLOW, CYAN = (255, 255, 255), (200, 200, 200), (255, 220, 90), (90, 220, 255)
 PIN_COLOUR = dict(PIC=(120, 190, 255), POB8=(255, 170, 60), PVDD=(255, 100, 100), PVSS=(200, 200, 200),
                   PANA=(120, 235, 120))
+# block outlines (die um), as chip/assemble.py places them (build/ecc_sram_nets.json, block bounding boxes)
+CTRL = (470, 560, 965.9, 1080.05)
+MON = {"canary": (554, 1158.2, 824.6, 1235.0), "robank": (829, 1158.2, 1174.1, 1357.1),
+       "ro_div": (1184, 1158.2, 1403.6, 1309.1)}
 
 
 def font(size):
@@ -132,36 +136,39 @@ def chip(gds):
                 f.text(x, die1 + 8, label, 19, colour, "mb", angle=90)
             else:
                 f.text(x, die0 - 8, label, 19, colour, "mt", angle=90)
-    blocks = [((470, 560, 959.6, 1041.15), "제어 블록\necc_fi_ctrl"),
+    blocks = [(CTRL, "제어 블록\necc_fi_ctrl"),
               ((1065, 567.4, 1246.5, 1066.3), "SRAM\n매크로"),
               ((1290, 470, 1442.4, 756.5), "디커플링\nVDDW"),
-              ((1290, 770, 1442.4, 913.7), "디커플링\nVDDA")]
+              ((1290, 770, 1442.4, 913.7), "디커플링\nVDDA"),
+              (MON["canary"], "카나리"), (MON["robank"], "RO 뱅크"), (MON["ro_div"], "분주기")]
     for (x1, y1, x2, y2), s in blocks:
         f.rect(x1, y1, x2, y2, YELLOW, 3)
         f.text((x1 + x2) / 2, (y1 + y2) / 2, s, 22, YELLOW)
     f.rect(442, 442, 1458, 1458, CYAN, 1)
-    f.text(950, 1300, "코어 영역 1016 × 1016 µm", 20, CYAN)
+    f.text(640, 1320, "코어 영역 1016 × 1016 µm", 20, CYAN)
     f.save("chip.png")
 
 
 def core(gds):
     f = Fig(gds, (440, 440, 1460, 1460), 1600)
-    f.rect(470, 560, 959.6, 1041.15, YELLOW, 3)
-    f.text(715, 800, "제어 블록 ecc_fi_ctrl\n표준셀 347개 (qflow 배치·배선)\n부호기 · 결함 마스크 · 행 해독\n"
-           "기준 워드(주소 15) · 신드롬 · SEC/DED", 22, YELLOW)
+    f.rect(*CTRL, YELLOW, 3)
+    f.text(715, 820, "제어 블록 ecc_fi_ctrl\n표준셀 375개 (qflow 배치·배선)\n부호기 · 결함 마스크 · 행 해독\n"
+           "기준 워드(주소 15) · 신드롬 · SEC/DED\n보기: 원시 · 카나리 · RO", 22, YELLOW)
     f.rect(1065, 567.4, 1246.5, 1066.3, YELLOW, 3)
     f.text(1155.75, 860, "SRAM 매크로\n8T 셀 15 × 8\n+ 컬럼 회로", 22, YELLOW)
     f.rect(1290, 470, 1442.4, 756.5, YELLOW, 3)
     f.text(1366.2, 613, "VDDW\n디커플링\n57 pF", 21, YELLOW)
     f.rect(1290, 770, 1442.4, 913.7, YELLOW, 3)
     f.text(1366.2, 842, "VDDA\n디커플링\n28.5 pF", 21, YELLOW)
-    f.text(1012, 1180, "워드라인 30개\nWWL·RWL\n(metal3 → metal2 → metal1)", 18, CYAN, "mb")
-    f.line(1012, 1180, 1012, 1050, CYAN)
+    f.text(1015, 905, "워드라인\n30개\nWWL·RWL", 17, CYAN)
     f.text(760, 500, "아래 채널: S 패드 입력, PRE_N · WD · SENSE", 18, CYAN)
-    f.text(700, 1235, "위 채널: 출력 6 · N 패드 입력 3", 18, CYAN)
-    f.line(700, 1220, 700, 1110, CYAN)
-    f.text(720, 1395, "VDD 띠 (metal3, N4 패드 → 제어 블록)", 18, CYAN)
-    f.line(720, 1408, 720, 1437, CYAN)
+    for name, s in (("canary", "카나리 래치 8"), ("robank", "RO 뱅크 INV·NAND·NOR"), ("ro_div", "분주기 ÷256")):
+        x1, y1, x2, y2 = MON[name]
+        f.rect(x1, y1, x2, y2, YELLOW, 3)
+        f.text((x1 + x2) / 2, (y1 + y2) / 2, s, 20, YELLOW)
+    f.text(1300, 1110, "위 채널 13트랙", 17, CYAN)
+    f.text(690, 1380, "FI_POS 띠 · VDD 띠 (N4 패드 → 제어 블록)", 17, CYAN)
+    f.line(690, 1392, 690, 1437, CYAN)
     for y, s in ((549, "VSS"), (583, "VDDW"), (902, "VDDA")):    # metal3 straps between macro and decaps
         f.text(1268, y, s, 15, CYAN)
     f.save("core.png")
@@ -231,12 +238,31 @@ def cell():
 
 
 def ctrl(gds):
-    f = Fig(gds, (-15, -10, 487, 484), 760, (190, 70, 190, 70))
-    f.text(-20, 237, "왼쪽\nW 패드 입력 7\n(CLK, WE,\nADDR, DIN3)", 18, CYAN, "rm")
-    f.text(492, 237, "오른쪽\n워드라인 30\n(WWL·RWL\n→ SRAM 매크로)", 18, CYAN, "lm")
-    f.text(236, 490, "위: N 패드 입력 3 (FI_POS) · 출력 6 (DOUT, SEC, DED)", 18, CYAN, "mb")
-    f.text(236, -16, "아래: S 패드 입력 5 (FI_MODE, DIN2–0) · PRE_N · WD 8 · SENSE 8", 18, CYAN, "mt")
+    f = Fig(gds, (-15, -10, 492, 520), 760, (190, 90, 190, 70))
+    f.text(-20, 255, "왼쪽\nW 패드 입력 7\n(CLK, WE,\nADDR, DIN3)", 18, CYAN, "rm")
+    f.text(497, 255, "오른쪽\n워드라인 30\n(WWL·RWL\n→ SRAM 매크로)", 18, CYAN, "lm")
+    f.text(238, 526, "위: N 패드 입력 3 (FI_POS) · 출력 6 (DOUT, SEC, DED)\n"
+           "모니터 14 (CAN 8, CSET, CRD_N, RO_EN 3, RO_DIV)", 18, CYAN, "mb")
+    f.text(238, -16, "아래: S 패드 입력 5 (FI_MODE, DIN2–0) · PRE_N · WD 8 · SENSE 8", 18, CYAN, "mt")
     f.save("ctrl.png")
+
+
+def monitor(gds):
+    f = Fig(gds, (440, 1060, 1460, 1460), 1600)
+    x1, y1, x2, y2 = MON["canary"]
+    f.rect(x1, y1, x2, y2, YELLOW, 3)
+    f.text((x1 + x2) / 2, y2 + 24, "카나리 래치 8개 (VDDA)\n위 행: 래치 · 아래 행: 읽기 게이트 (VDD)", 18, YELLOW, "mb")
+    x1, y1, x2, y2 = MON["robank"]
+    f.rect(x1, y1, x2, y2, YELLOW, 3)
+    f.text((x1 + x2) / 2, y2 + 10, "RO 뱅크: INV · NAND · NOR 31단 링 (VDD)", 18, YELLOW, "mb")
+    x1, y1, x2, y2 = MON["ro_div"]
+    f.rect(x1, y1, x2, y2, YELLOW, 3)
+    f.text((x1 + x2) / 2, y2 + 10, "분주기 ro_div ÷256\n(qflow)", 18, YELLOW, "mb")
+    f.text(455, 1110, "위 채널 13트랙\n제어 블록 핀 ↔ 블록 포트", 16, CYAN, "lm")
+    f.text(455, 1145, "VDDA · VSS · VDD 띠", 16, CYAN, "lm")
+    f.text(900, 1422, "FI_POS 띠 → N1–N3 패드", 16, CYAN, "lm")
+    f.text(1040, 1444, "DED · SEC · DOUT3 → N5–N7 패드", 16, CYAN, "lm")
+    f.save("monitor.png")
 
 
 def main():
@@ -248,6 +274,7 @@ def main():
         ctl.write_bytes(gzip.decompress((REPO / "designs/etri050/ctrl/macro/ecc_fi_ctrl.gds.gz").read_bytes()))
         chip(top)
         core(top)
+        monitor(top)
         macro()
         column()
         cell()

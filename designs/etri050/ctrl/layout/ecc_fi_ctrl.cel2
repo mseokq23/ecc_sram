@@ -44,7 +44,25 @@ twpin_FI_POS[0]          nonfixed
 twpin_FI_POS[1]          nonfixed
 twpin_FI_POS[2]          nonfixed
 restrict side T
-sidespace 0.03 0.3
+sidespace 0.02 0.12
+
+padgroup Monitor permute
+twpin_RO_EN[0]           nonfixed
+twpin_RO_EN[1]           nonfixed
+twpin_RO_EN[2]           nonfixed
+twpin_RO_DIV             nonfixed
+twpin_CSET               nonfixed
+twpin_CRD_N              nonfixed
+twpin_CAN[0]             nonfixed
+twpin_CAN[1]             nonfixed
+twpin_CAN[2]             nonfixed
+twpin_CAN[3]             nonfixed
+twpin_CAN[4]             nonfixed
+twpin_CAN[5]             nonfixed
+twpin_CAN[6]             nonfixed
+twpin_CAN[7]             nonfixed
+restrict side T
+sidespace 0.15 0.58
 
 padgroup Pads_Out permute
 twpin_DOUT[0]            nonfixed
@@ -54,7 +72,7 @@ twpin_DOUT[3]            nonfixed
 twpin_SEC_FLAG           nonfixed
 twpin_DED_FLAG           nonfixed
 restrict side T
-sidespace 0.42 0.9
+sidespace 0.64 0.95
 
 padgroup Array_WL permute
 twpin_WWL[0]             nonfixed
