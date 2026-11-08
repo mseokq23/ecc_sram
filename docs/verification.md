@@ -294,7 +294,23 @@ Ubuntu 24.04에 배포판 magic 8.3.105, netgen 1.5.133, klayout 0.28.16, ngspic
 
 25번 모두 DOUT·SEC·DED가 모델과 같고, 읽는 순간 출력 여섯 개가 모두 레일 값이다(가장 먼 것도 레일에서 0.001 V 안). 방향 보기 읽기 8번이 모두 맞았으므로, 그린 그대로의 코어에서 데이터 0의 2비트 저장 오류는 고쳐지고({SEC, DED} = 11, 정상 읽기는 DED), 3비트 저장 오류는 정상 읽기가 틀린 값 + SEC인 것을 방향 보기는 검출(01)한다. ngspice는 조건 하나에 약 30분(2-core에서 두 조건을 나란히).
 
+### 최종 GDS
+
+`chip/check_all.sh --save`(repo 37164d5, `chip/final/check_report.txt`): 모두 통과, 2-core에서 약 7분. 저장한 GDS는 4,744,300 B, sha256 `73fd2967…5cccb4`(압축 전, 전체 값은 `final/ecc_sram_Top.gds.sha256`).
+
+| 확인 | 결과 |
+|---|---|
+| 저장한 파일을 풀어 비교 | `chip/build`에서 검사한 GDS와 바이트까지 같고 sha256이 기록과 같음 |
+| 푼 GDS로 제출 GDS 검사와 제출 zip(`mychip_gds_check.py --zip --report`) | 통과, 실패 0 · 경고 0. `final/ecc_sram_Top.zip` 1,029,331 B(안에 `ecc_sram_Top.gds` 하나, 압축하지 않은 GDSII, CRC 정상), sha256 `842d412f…7622d8`. 기록은 `final/ecc_sram_Top_gds_check.txt` |
+| 검사기 자체 시험(`mychip_gds_check_selftest.py`, 이 GDS에 오류를 넣음) | 11가지 모두 기대대로 |
+| 최종 코어에서 다시 추출한 넷리스트와 위 칩 코어 모의의 넷리스트 | 소자 줄 4,236개 같음, 기생 C 12,041개가 같은 집합(순서만 다름), 포트 25개 같음. 위 4조건 모의가 이 GDS의 결과다 |
+| 문서 그림(`scripts/doc_figures.py`) | 최종 GDS에서 다시 그린 7장이 `docs/img`와 바이트까지 같음 |
+| 신청서용 DRC·LVS 화면 | `final/DRC_ecc_sram_Top.png`: KLayout에 최종 GDS와 공식 덱 결과(규칙 115개 모두 표시 0). `final/LVS_ecc_sram_core.png`: GDS sha256과 코어 LVS(nfet 2,224 · pfet 1,758, 3,982 소자 · 1,909 넷, Circuits match uniquely) |
+
+**판단**: 방향을 아는 복호를 넣은 제출용 칩 GDS가 나왔다. main(2026-11-03)의 칩과 같은 검사를 모두 통과하고(공식 DRC 0, Calibre 전용 0, 규칙 7–12의 64개는 손대지 않은 ETRI GPIO 셀 안, 안테나 0, 코어 LVS 일치, 기판·우물 접점 모두 전원 금속), 그린 그대로의 코어가 코너와 낮춘 어레이 전원에서 방향 보기까지 ECC 모델대로 쓰고 읽는다. 바뀐 것은 복호를 떼어 낸 블록과 읽기 모드 11의 FI_POS[2:1] = 01(방향 보기)뿐이고, 그 밖의 동작은 main과 같다(형식 등가로 확인). 측정에서 방향 보기 읽기는 DIN = 0으로 한다. main 병합과 제출 차수는 아직 정하지 않았다.
+
 ## 다음
 
-1. 측정 보드·절차 정리(입력 레벨, VDDA·VDDW 순서, 보존·읽기·쓰기 실험 순서)
-2. 제출 서류: DRC·LVS 결과 화면, 신청서(지도교수 서명)
+1. 브랜치 direction-ecc를 main에 병합할지와 제출 차수(2026년 4차 DB 마감 12/7, 또는 2027년 1차)를 정한다
+2. 측정 보드·절차 정리(입력 레벨, VDDA·VDDW 순서, 보존·읽기·쓰기 실험 순서, 방향 보기 읽기는 DIN = 0)
+3. 제출 서류: 신청서(2장 DB 접수 내용은 [guide.md](guide.md) 1.1, DRC·LVS 화면은 `chip/final`의 PNG), 대표 학생·지도교수 서명, 모아팹에 `chip/final/ecc_sram_Top.zip` 올리기

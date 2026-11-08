@@ -9,6 +9,9 @@
 | `designs/etri050/chip/final/ecc_sram_Top.gds.gz` | 제출용 칩 GDS(gzip). 최상위 셀 `ecc_sram_Top` |
 | `designs/etri050/chip/final/ecc_sram_Top.gds.sha256` | 압축을 푼 GDS와 압축 파일의 sha256 |
 | `designs/etri050/chip/final/check_report.txt` | 이 GDS를 만든 전체 재검사 기록(`check_all.sh --save`) |
+| `designs/etri050/chip/final/ecc_sram_Top.zip` | 제출 파일(설계 DB). 안에 `ecc_sram_Top.gds` 하나(압축하지 않은 GDSII, 위 sha256과 같은 파일) |
+| `designs/etri050/chip/final/ecc_sram_Top_gds_check.txt` | zip을 만든 제출 GDS 검사 기록(GDS·zip sha256) |
+| `designs/etri050/chip/final/DRC_ecc_sram_Top.png`, `LVS_ecc_sram_core.png` | 신청서용 DRC·LVS 결과 화면: KLayout에서 최종 GDS와 공식 덱 결과(규칙 115개 모두 0), 코어 LVS 결과(Netgen) |
 
 - 공정: ETRI NSPL 0.5 µm CMOS 2P3M 5 V, 28핀 패드 틀(MPW_PAD_28pin)
 - GDS 범위 1705 × 1705 µm, 설계 면적(패드 셀 안쪽) 1016 × 1016 µm, 트랜지스터 게이트 5,390개(패드 셀 포함)
@@ -24,6 +27,21 @@ ecc_sram_Top
 │   └── decap_vdda         VDDA 디커플링 28.5 pF
 └── ecc_sram_Pad           패드 링: ETRI GPIO 패드 28개와 코너·필러 셀
 ```
+
+### 1.1 신청서(2장 DB 접수 내용)에 쓰는 값
+
+| 항목 | 값 |
+|---|---|
+| 설계 DB 파일명 (Top Cell 명) | `ecc_sram_Top.zip` (Top Cell `ecc_sram_Top`) |
+| 설계 사용 Tool | Magic 8.3, KLayout 0.28, Netgen 1.5, ngspice 42, Yosys 0.33, qflow(GrayWolf, Qrouter), Icarus Verilog 12 (오픈소스) |
+| 표준칩 배치 (MPW_PAD_28pin) | 사용 (본딩 패드 28개가 `MPW_PAD_28pin.gds`와 XOR 0) |
+| 제공한 PDK의 GPIO | 사용: PIC 15, POB8 6, PVDD 2, PVSS 3, PANA 2(VDDA·VDDW, PADR 포트), PCORNER 4, IOFILLER50 8 |
+| 설계 면적 | 1칩 (패드 셀 안쪽 1016 × 1016 µm) |
+| 사용 소자 | 코어는 NMOS·PMOS만(디커플링도 MOS 커패시터). 저항·다이오드·ESD 층은 ETRI GPIO 셀 안에만 있다 |
+| Rule Check | DRC: 킷 KLayout 공식 덱 + Calibre 전용 73규칙 + 규칙 7–12 + 안테나. LVS: 코어 트랜지스터 수준(Magic 추출 + Netgen). 기생 추출: 칩 코어 모의용 Magic 추출(기생 C × 1.5) |
+| DRC/LVS 결과 화면 | `final/DRC_ecc_sram_Top.png`, `final/LVS_ecc_sram_core.png` |
+
+설계명, 칩 제공 형태(Bare Die / 28pin-SOP / 모두), PEX 칸 표시는 신청할 때 정한다.
 
 ## 2. 칩 주제
 
@@ -171,7 +189,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ## 5. 검증 결과
 
-최종 GDS는 `designs/etri050/chip/check_all.sh --save`가 소스에서 모든 블록과 칩을 다시 만들고 아래 검사를 모두 통과했을 때만 저장한다. 기록은 `final/check_report.txt`.
+최종 GDS는 `designs/etri050/chip/check_all.sh --save`가 소스에서 모든 블록과 칩을 다시 만들고 아래 검사를 모두 통과했을 때만 저장한다. 기록은 `final/check_report.txt`. 제출 zip은 저장한 GDS를 풀어 제출 GDS 검사를 다시 통과시켜 만들었고(`final/ecc_sram_Top_gds_check.txt`), 검사기 자체 시험 11가지도 이 GDS로 모두 기대대로 나왔다.
 
 | 대상 | 검사 | 도구 | 결과 |
 |---|---|---|---|
@@ -273,7 +291,14 @@ PNG는 VS Code 탐색기에서 누르면 바로 보인다(`/tmp`에 그렸다면
 # 저장소의 최종 GDS가 기록된 것과 같은지 (gunzip -k 뒤에)
 (cd designs/etri050/chip/final && sha256sum -c ecc_sram_Top.gds.sha256)
 
-# 소스에서 블록과 칩을 다시 만들고 모든 검사 (약 6분) → designs/etri050/chip/build/check_report.txt
+# 제출 zip 안의 GDS가 같은 파일인지
+unzip -p designs/etri050/chip/final/ecc_sram_Top.zip ecc_sram_Top.gds | sha256sum
+
+# 제출 zip을 다시 만들기 (zip 안 파일 시각이 들어가 zip의 sha256은 달라진다)
+python3 scripts/mychip_gds_check.py designs/etri050/chip/final/ecc_sram_Top.gds --top ecc_sram_Top \
+    --zip designs/etri050/chip/build/ecc_sram_Top.zip --report designs/etri050/chip/build/ecc_sram_Top_gds_check.txt
+
+# 소스에서 블록과 칩을 다시 만들고 모든 검사 (2-core에서 약 7분) → designs/etri050/chip/build/check_report.txt
 bash designs/etri050/chip/check_all.sh
 
 # 다시 만든 GDS와 최종 GDS의 도형 비교: 층마다 XOR 면적이 0이면 같은 칩

@@ -1,0 +1,15 @@
+파일: 최상위 셀 ['ecc_sram_Top'](기대 ecc_sram_Top), dbu 1 nm, 범위 (97.5,97.5;1802.5,1802.5), CHIPBOUNDARY 없음 -> ok
+스크라이브 레인(바깥 60 um): CHIPBOUNDARY 말고 아무것도 없음 -> ok
+본딩 패드: PAD 개구 28개, MPW_PAD_28pin.gds 28개, 같음(XOR 0) -> ok
+GPIO 배치: PANA 2, PIC 15, POB8 6, PVDD 2, PVSS 3, PCORNER 4, IOFILLER50 8; 설계 면적(패드 셀 안쪽 끝) (442,442;1458,1458) = 1016 x 1016 um (정보)
+층: NWELL 2/0, PWELL 3/0, ACT 11/0, POLY1 12/0, POLY2 13/0, NSD 14/0, PSD 15/0, ESDI 26/0, CONT 31/0, MET1 32/0, VIA1 33/0, MET2 34/0, VIA2 35/0, MET3 36/0, PAD 37/0, MET2TXT 44/0, MET3TXT 46/0, PADTXT 47/0, RES 51/0, DIODE 57/0, ESDD 59/0, LVSD 60/0 (모두 층 지도 안) -> ok
+격자 0.01 um: 모든 꼭짓점·배치가 격자 위; 글자 위치 모두 격자 위 -> ok
+도형: 모든 변이 직교·45도; 경로 0개 -> ok
+배치: 배율 1, 90도 회전만; 배열 251개 -> ok
+셀: GPIO 7종(PVDD, PCORNER, PVSS, POB8, PIC, PANA, IOFILLER50) 모두 라이브러리 원본과 같음 -> ok
+라벨: 최상위 셀의 LVS 라벨 층 글자 0개; 다른 층 없음 -> ok
+우물: 게이트 5390개, N-well 밖 p형 0, N-well 안 n형 0, 주입 없음 0, 주입 둘 0 -> ok
+기판: p+ 기판 접촉을 가진 넷 7개, 기판에 붙은 본딩 패드 PVSS 3개 · 그 밖 0개 -> ok
+제출 GDS 검사: 통과 (실패 0, 경고 0)
+GDS: designs/etri050/chip/build/submit/ecc_sram_Top.gds 4,744,300 B, sha256 73fd2967af38442337453bfe9a075667af3e3f083418ea5a6b2153983f5cccb4
+제출 zip: designs/etri050/chip/final/ecc_sram_Top.zip 1,029,331 B (안에 ecc_sram_Top.gds, CRC 정상), sha256 842d412f3d196b02d3612724ad1e75cfa9f2fa665329221241e6f8623e7622d8 — 신청서 Top Cell Name: ecc_sram_Top
