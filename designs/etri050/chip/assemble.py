@@ -37,7 +37,7 @@ Wiring (three layers, each net on its own track, so no two nets share a layer wh
                   (metal2 riser through the channel) to the decoder's gnd spine
 Rules used (rule document v1.1): metal1 >= 0.8, metal2 >= 1.0, metal3 >= 1.2 wide; cuts 0.8 with 0.6
 enclosure, cut spacing 0.8, no VIA2 on VIA1; drawn here: metal1 1.2, metal2 1.2, metal3 1.6, via pads 2.0.
-Every coordinate is rounded to 0.01 um. Straps stay narrower than 10 um (no wide-metal spacing).
+Every coordinate is rounded to 0.01 um.
 """
 from __future__ import annotations
 
@@ -64,8 +64,8 @@ CTRL_LL = (470.0, 560.0)
 MACRO_LL = (1065.0, 567.4)
 DECAP_LL = {"decap_vddw": (1290.0, 470.0), "decap_vdda": (1290.0, 770.0)}
 # decoder block: x of its bounding box's left edge; y (bottom) follows the top channel's height. Its left edge
-# stays east of the FI_POS lines (x 484-497), its right edge west of the N pad output lines (x 1435), and no pin
-# of it within 2 um of the control block's gnd riser (x 945.6-952.6)
+# stays east of the FI_POS lines (x 493.7-506.9), its right edge west of the N pad output lines (x 1435), and no
+# pin of it within 2 um of the control block's gnd riser (x 945.6-952.6)
 DEC_X = 560.0
 CH_Y0, CH_PITCH = 1086.0, 4.0                       # top channel: first metal3 track, pitch
 WL_X0 = 968.0                                        # word line metal2 tracks x WL_X0 + 3 i (clear of the gnd spine)

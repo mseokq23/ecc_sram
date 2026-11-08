@@ -14,7 +14,9 @@
 // Read cycles with FI_MODE = 11 (VIEW = 1):
 //   FI_POS[2:1] = 01  direction view (V_DIR = 1): ecc_dec decodes R knowing which way its bad bits can have
 //                     gone (HALF = FI_POS[0] = 1: 0 -> 1, 0: 1 -> 0). DIN[3] = 1 flips bit DIN[2:0] of R
-//                     (one transient flip, for logic tests of any 2- and 3-bit pattern with a stored fault).
+//                     (one transient flip: with a stored fault, every 2-bit pattern and the 3-bit patterns
+//                     that hold a pair {2m, 2m+1} can be tested in logic). Reads in this view keep DIN = 0
+//                     unless a flip is wanted.
 //   otherwise         raw view: ecc_dec shows R, half picked by HALF.
 //
 // Timing: CLK = 0 precharges the read bit lines; ADDR, WE, DIN, FI_MODE and FI_POS change only while CLK = 0.

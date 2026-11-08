@@ -10,6 +10,8 @@
 //  phase 4: the same through stored faults written by the chip (reference word and an array row):
 //           every data x write mode/position x direction x flip
 //  phase 5: random operations, every read checked
+//  every read of an array word in mode 00 is also checked in its precharge phase (CLK = 0, the read bit
+//  lines high): DOUT = F without flags, as on the chip before this change
 //  monitors: word lines only while CLK = 1, at most one at a time, none for address 15
 module tb;
     parameter integer NRAND = 100000;
@@ -46,7 +48,7 @@ module tb;
     end
 
     reg [7:0] m_refw;
-    integer checks = 0, errors = 0, wl_errors = 0, dir_checks = 0;
+    integer checks = 0, errors = 0, wl_errors = 0, dir_checks = 0, pre_checks = 0;
     integer n_c1 = 0, n_c2 = 0, n_det = 0, n_ok = 0;
     reg [3:0] o_dout; reg o_sec, o_ded;
 
@@ -111,7 +113,15 @@ module tb;
         reg [5:0] zd;
         begin
             WE = 0; ADDR = a; FI_MODE = m; FI_POS = p; DIN = din;
-            #5 CLK = 1; #8;
+            #2;                                              // precharge phase: the array side shows all ones
+            if (a != 4'd15 && m == 2'b00) begin              // R = FF, the codeword of F: DOUT F, no flags
+                pre_checks = pre_checks + 1;
+                if (DOUT !== 4'hF || SEC_FLAG || DED_FLAG) begin
+                    errors = errors + 1;
+                    if (errors < 12) $display("%0t precharge view unexpected a=%0d got %h %b%b", $time, a, DOUT, SEC_FLAG, DED_FLAG);
+                end
+            end
+            #3 CLK = 1; #8;
             st = (a == 4'd15) ? m_refw : mem[a];
             if (m == 2'b11 && p[2:1] == 2'b01) begin
                 r = st ^ (din[3] ? (8'd1 << din[2:0]) : 8'd0);
@@ -210,7 +220,8 @@ module tb;
         end
         $display("phase 5 done: checks %0d errors %0d", checks, errors);
         $display("word line errors %0d", wl_errors);
-        if (errors == 0 && wl_errors == 0) $display("TB RESULT: PASS (%0d checks, %0d in the direction view)", checks, dir_checks);
+        if (errors == 0 && wl_errors == 0) $display("TB RESULT: PASS (%0d checks, %0d in the direction view, %0d in the precharge phase)",
+                                                    checks, dir_checks, pre_checks);
         else $display("TB RESULT: FAIL (%0d errors, %0d word line errors)", errors, wl_errors);
         $finish;
     end

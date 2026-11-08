@@ -11,7 +11,8 @@
 # Ring     pad ring with ETRI's GPIO cells, official KLayout DRC
 # Chip     assembly; official KLayout DRC (the kit's conversion of ETRI's Calibre deck); the 73 Calibre
 #          checks the KLayout deck leaves out; rules 7-12 with the rule document values; antenna rules;
-#          transistor-level LVS of the core against the design netlists; submission GDS checks
+#          transistor-level LVS of the core against the design netlists; every substrate and well tap on
+#          supply metal (the LVS takes the NMOS bulk as VSS); submission GDS checks
 # Rules 7-12 also report what ETRI's own GPIO cells contain; those markers are counted against the
 # pad ring alone (the same cells, unchanged) and only markers that the ring does not have fail.
 # Report: build/check_report.txt
@@ -89,6 +90,9 @@ check "chip extra checks (Calibre-only 73, rules 7-12, antenna)" "extra checks: 
 grep -E "Calibre-only|rules 7-12|antenna" "$B/check/chip_extra_checks_(Calibre-only_73,_rules_7-12,_antenna).log" | sed 's/^ */      /' | tee -a "$R"
 check "core LVS (transistor level, Magic + Netgen)" "core LVS: MATCH" python3 designs/etri050/chip/core_lvs.py
 grep -E "Number of devices|Number of nets" "$B/lvs/core_lvs.out" | tail -2 | sed 's/|.*//; s/^/      /' | tee -a "$R"
+check "substrate and well taps on supply metal (tap_check.py)" "tap check: all taps on supply metal" \
+  python3 scripts/tap_check.py
+grep -E "taps:" "$B/check/substrate_and_well_taps_on_supply_metal_(tap_check.py).log" | sed 's/^/      /' | tee -a "$R"
 check "submission GDS checks (mychip_gds_check.py)" "통과 \(실패 0, 경고 0\)" \
   python3 scripts/mychip_gds_check.py --top ecc_sram_Top "$G"
 

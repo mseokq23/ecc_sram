@@ -5,22 +5,23 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 - 맞춤 8T SRAM 어레이 15행 × 8열 + 표준셀 기준 워드(주소 15) = 16워드, 워드마다 데이터 4비트 + 검사 4비트
 - Hamming(8,4) SEC-DED. 외부 핀으로 결함을 넣는다: 쓰기 때 1/2/3비트 저장 오류, 읽기 때 1/2비트 오류, 저장된 코드워드 원시 보기
 - 셀 전원 VDDA와 비트라인 드라이버 전원 VDDW를 따로 뺐다. 이 둘을 낮춰 보존 실패·읽기 실패·쓰기 실패 같은 **실제 물리 결함**을 만들고, ECC가 그것을 고치고 검출하는지 측정한다
+- **방향을 아는 복호**: 저전압 읽기·쓰기 실패는 0 → 1 한 방향이다. 읽기 모드 11의 방향 보기(FI_POS 011)는 이 방향을 알고 같은 부호·같은 저장 비트를 다시 판정해, 표준 SEC-DED가 틀린 값으로 고치는(SEC만 나오는) 한 방향 3비트 오류 112가지를 모두 검출하고 데이터 0 워드의 2비트 오류는 고친다. 복호는 코어 위쪽의 조합 논리 블록 `ecc_dec`가 한다(새 핀 없음)
 - 제출 목표: 2027년 1차. 일정이 앞당겨지면 2026년 4차(DB 마감 12/7)
 
 사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
 
 **최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`). 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
 
-## 진행 상황 (2026-11-03)
+## 진행 상황 (2026-11-08, 브랜치 direction-ecc)
 
 | 블록 | 결과 |
 |---|---|
 | 8T 셀 회로 모의 (PDK 260820 모델) | 45조건 쓰기·읽기 통과, 보존 전압 TT 0.37 V, 읽기 Vmin(VDDA) TT 1.42 V, 쓰기 Vmin(VDDW) TT 1.86 V |
 | 8T 셀·15×8 어레이 레이아웃 | Magic DRC 0, KLayout DRC 0, LVS 일치, Calibre 전용 73규칙·금속 규칙·안테나 0 |
 | SRAM 매크로(어레이 + 컬럼 회로), 디커플링 | 같은 검사 모두 0·일치. 후모의 5 코너 + VDDA 2 V, 240비트씩 오류 0 |
-| 제어 블록 ecc_fi_ctrl | RTL·게이트·배치 후 시험 통과(121,616회 비교), 평면 LVS 일치, DRC 0, 매크로 고정 |
-| 패드 링·칩 조립 | 칩 전체 공식 DRC 0, Calibre 전용 0, 안테나 0, 코어 LVS 일치(3,284 소자), 제출 GDS 검사 통과 |
-| 칩 코어 트랜지스터 모의 (코어 전체 추출) | TT 27 °C 5 V, SS 125 °C 4.5 V, FF 0 °C 5.5 V, VDDA·VDDW 2.0 V: 쓰기·읽기·결함 주입 13번 읽기 모두 ECC 모델과 같음 |
+| 제어 블록 ecc_fi_ctrl, 복호 블록 ecc_dec | 칩 코어 논리 시험 235,865회 비교(방향 보기 30,206회)와 ecc_dec 입력 2,048가지 전수 시험이 RTL·게이트·배치 후·고정 넷리스트에서 통과, 틀린 RTL 14개 모두 잡힘. 두 블록 평면 LVS 일치, DRC 0, 매크로 고정 |
+| 패드 링·칩 조립 | 칩 전체 공식 DRC 0, Calibre 전용 0, 안테나 0, 코어 LVS 일치(3,982 소자), 기판·우물 접점 모두 전원 금속, 제출 GDS 검사 통과 |
+| 칩 코어 트랜지스터 모의 (코어 전체 추출) | TT 27 °C 5 V, SS 125 °C 4.5 V, FF 0 °C 5.5 V, VDDA·VDDW 2.0 V: 쓰기·읽기·결함 주입·방향 보기 25번 읽기 모두 ECC 모델과 같음 |
 | 최종 GDS | `chip/check_all.sh --save`: 소스에서 블록과 칩을 다시 만들어 위 검사를 모두 다시 통과한 GDS를 `chip/final`에 저장 |
 
 선례로 정한 것(ETRI 문의 없이): VDDA·VDDW는 PANA PADR, 전원 패드 PVDD 2·PVSS 3, 출력 POB8 — 근거는 docs/verification.md 7절.
@@ -41,18 +42,19 @@ scripts/
   mychip_gds_check.py     제출 GDS 자체 검사(층, 격자, 스크라이브 레인, 패드 개구 …)
   render_gds.py, doc_figures.py   GDS를 PNG로 그리기, docs/img 그림 다시 그리기
   gds_xor.py              두 GDS의 도형 비교(층마다 XOR 면적)
+  tap_check.py            기판·우물 접점이 모두 금속으로 전원 패드에 이어지는지(LVS가 못 보는 것)
 designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
   gen/colper.py           어레이 아래 컬럼 회로, 어레이와 합친 SRAM 매크로(sram_macro)
   gen/decap.py            VDDW·VDDA 디커플링(MOS 커패시터)
   sim/cell/               셀·컬럼 트랜지스터 수준 모의(코너, 보존 전압, 읽기 Vmin, 보존 시간)
   sim/post/array_post.py  그린 어레이(또는 --macro: 매크로 전체)를 추출해 쓰기·읽기 모의
-  ctrl/                   제어 블록: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정
-  ctrl/macro/             고정한 제어 블록(GDS, 넷리스트, 핀 좌표)
+  ctrl/                   제어 블록 ecc_fi_ctrl과 복호 블록 ecc_dec: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정
+  ctrl/macro/             고정한 두 블록(GDS, 넷리스트, 핀 좌표)
   chip/                   패드 링(pins.csv, run_pad_ring.sh), 칩 조립(assemble.py), 코어 LVS(core_lvs.py)
   chip/check_all.sh       소스에서 전체를 다시 만들고 모든 검사, --save면 통과한 GDS를 chip/final에 저장
   chip/final/             최종 GDS(gzip), sha256, 재검사 기록
-  sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입을 ECC 모델과 비교)
+  sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입·방향 보기를 ECC 모델과 비교)
 docs/                     안내(guide.md), 사양, 검증 기록, 그림(img/)
 ```
 
@@ -73,6 +75,7 @@ bash scripts/smoke-test.sh          # 도구, 킷, 모델, DRC/LVS 한 바퀴
 같은 이미지를 Docker로 쓰는 것이 가장 간단하다. 배포판 패키지로 맞출 때 필요한 것:
 
 - magic 8.3, netgen, klayout 0.28 이상(파이썬 모듈 포함), ngspice 42, iverilog 12, yosys, python3 + numpy
+- 배포판 KLayout의 파이썬 모듈이 쓰는 파이썬과 `python3`이 다르면 `pip install klayout`으로 모듈만 따로 넣는다(Ubuntu 24.04 + Python 3.13: klayout 0.30.13)
 - qflow 빌드: `libxt-dev libx11-dev`, graywolf 실행: `libgsl27 libgslcblas0`
 - Ubuntu의 netgen은 `netgen-lvs`라는 이름이다. `ln -s /usr/bin/netgen-lvs /usr/local/bin/netgen`
 
@@ -102,11 +105,13 @@ python3 designs/etri050/sim/post/array_post.py --macro
 # 디커플링
 python3 designs/etri050/gen/decap.py --check
 
-# 제어 블록
-make -C designs/etri050/ctrl sim synth gatesim   # RTL, 합성, 게이트 수준
-make -C designs/etri050/ctrl flow qflowsim       # qflow 배치·배선, 검사, 배치 후 넷리스트 시험
-bash designs/etri050/ctrl/freeze_macro.sh        # ctrl/macro 갱신
-bash scripts/extra_checks.sh designs/etri050/ctrl/build/qflow/layout/ecc_fi_ctrl_F_grid.gds
+# 제어 블록과 복호 블록
+make -C designs/etri050/ctrl sim dec_sim synth gatesim mutants   # RTL, 전수 시험, 합성, 게이트 수준, 틀린 RTL
+make -C designs/etri050/ctrl flow dec_flow qflowsim             # qflow 배치·배선, 검사, 배치 후 넷리스트 시험
+bash designs/etri050/ctrl/freeze_macro.sh                       # ctrl/macro 갱신
+TOP=ecc_dec bash designs/etri050/ctrl/freeze_macro.sh
+bash scripts/extra_checks.sh designs/etri050/ctrl/build/qflow/layout/ecc_fi_ctrl_F_grid.gds \
+    designs/etri050/ctrl/build/qflow_ecc_dec/layout/ecc_dec_F_grid.gds
 
 # 패드 링, 칩 조립과 검사
 bash designs/etri050/chip/run_pad_ring.sh
