@@ -22,7 +22,7 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 | 제어 블록 ecc_fi_ctrl, 복호 블록 ecc_dec | 칩 코어 논리 시험 235,865회 비교(방향 보기 30,206회)와 ecc_dec 입력 2,048가지 전수 시험이 RTL·게이트·배치 후·고정 넷리스트에서 통과, 틀린 RTL 14개 모두 잡힘. 두 블록 평면 LVS 일치, DRC 0, 매크로 고정 |
 | 패드 링·칩 조립 | 칩 전체 공식 DRC 0, Calibre 전용 0, 안테나 0, 코어 LVS 일치(3,982 소자), 기판·우물 접점 모두 전원 금속, 제출 GDS 검사 통과 |
 | 칩 코어 트랜지스터 모의 (코어 전체 추출) | TT 27 °C 5 V, SS 125 °C 4.5 V, FF 0 °C 5.5 V, VDDA·VDDW 2.0 V: 쓰기·읽기·결함 주입·방향 보기 25번 읽기 모두 ECC 모델과 같음 |
-| 최종 GDS | `chip/check_all.sh --save`: 소스에서 블록과 칩을 다시 만들어 위 검사를 모두 다시 통과한 GDS를 `chip/final`에 저장(4,744,300 B, sha256 73fd2967…5cccb4). 제출 zip은 그 GDS로 제출 GDS 검사를 다시 통과시켜 만듦 |
+| 최종 GDS | `chip/check_all.sh --save`: 소스에서 블록과 칩을 다시 만들어 위 검사를 모두 다시 통과한 GDS를 `chip/final`에 저장(4,744,300 B, sha256 73fd2967…5cccb4). 제출 zip은 그 GDS로 제출 GDS 검사를 다시 통과시켜 만듦. 브랜치를 새로 받아 다시 만들어도 모든 검사 통과, 19개 층 XOR 0 |
 
 선례로 정한 것(ETRI 문의 없이): VDDA·VDDW는 PANA PADR, 전원 패드 PVDD 2·PVSS 3, 출력 POB8 — 근거는 docs/verification.md 7절.
 

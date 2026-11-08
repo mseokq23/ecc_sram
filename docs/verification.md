@@ -304,6 +304,7 @@ Ubuntu 24.04에 배포판 magic 8.3.105, netgen 1.5.133, klayout 0.28.16, ngspic
 | 푼 GDS로 제출 GDS 검사와 제출 zip(`mychip_gds_check.py --zip --report`) | 통과, 실패 0 · 경고 0. `final/ecc_sram_Top.zip` 1,029,331 B(안에 `ecc_sram_Top.gds` 하나, 압축하지 않은 GDSII, CRC 정상), sha256 `842d412f…7622d8`. 기록은 `final/ecc_sram_Top_gds_check.txt` |
 | 검사기 자체 시험(`mychip_gds_check_selftest.py`, 이 GDS에 오류를 넣음) | 11가지 모두 기대대로 |
 | 최종 코어에서 다시 추출한 넷리스트와 위 칩 코어 모의의 넷리스트 | 소자 줄 4,236개 같음, 기생 C 12,041개가 같은 집합(순서만 다름), 포트 25개 같음. 위 4조건 모의가 이 GDS의 결과다 |
+| 올린 브랜치를 새로 받아(17c61a4) 킷 연결과 `get-models.sh`만 하고 `check_all.sh` | 모든 검사 통과(같은 수치), 다시 만든 GDS와 최종 GDS가 19개 층 모두 XOR 0(`scripts/gds_xor.py`). sha256은 GDS 머리의 날짜 때문에 다르다. 받은 최종 파일은 sha256 기록과 같고 zip 안의 GDS도 같은 파일 |
 | 문서 그림(`scripts/doc_figures.py`) | 최종 GDS에서 다시 그린 7장이 `docs/img`와 바이트까지 같음 |
 | 신청서용 DRC·LVS 화면 | `final/DRC_ecc_sram_Top.png`: KLayout에 최종 GDS와 공식 덱 결과(규칙 115개 모두 표시 0). `final/LVS_ecc_sram_core.png`: GDS sha256과 코어 LVS(nfet 2,224 · pfet 1,758, 3,982 소자 · 1,909 넷, Circuits match uniquely) |
 
