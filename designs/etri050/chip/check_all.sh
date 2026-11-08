@@ -4,7 +4,8 @@
 #
 #   bash designs/etri050/chip/check_all.sh [--save]
 #
-# Blocks   control block: RTL, gate-level and frozen-netlist testbenches; frozen GDS: official KLayout
+# Blocks   control block and decoder block: RTL, gate-level and frozen-netlist testbenches (the chip-core
+#          logic testbench over both, the decoder's exhaustive testbench); frozen GDS: official KLayout
 #          DRC + extra checks. Cell, array, SRAM macro, decoupling: regenerated, Magic DRC, official
 #          KLayout DRC, Netgen LVS (etri-check) + extra checks
 # Ring     pad ring with ETRI's GPIO cells, official KLayout DRC
@@ -52,14 +53,18 @@ drc_count() {   # official KLayout deck on a GDS -> number of markers
 say "ECC 8T SRAM chip check, $(date '+%Y-%m-%d %H:%M %Z'), repo $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)$(git -C "$REPO" diff --quiet 2>/dev/null || echo ' (modified)')"
 say "kit $(git -C "$ETRI050_DK" log -1 --format='%h %cs' 2>/dev/null), $(klayout -v 2>&1), magic $(magic --version 2>/dev/null), $(ngspice -v 2>&1 | grep -o 'ngspice-[0-9]*' | head -1)"
 say ""
-say "== control block"
-check "ctrl RTL testbench" "TB RESULT: PASS" make -C designs/etri050/ctrl sim
-check "ctrl gate-level testbench" "TB RESULT: PASS" make -C designs/etri050/ctrl gatesim
-check "ctrl frozen netlist testbench" "TB RESULT: PASS" make -C designs/etri050/ctrl macrosim
-gzip -dc "$D/ctrl/macro/ecc_fi_ctrl.gds.gz" > "$B/check/ecc_fi_ctrl.gds"
-n=$(drc_count "$B/check/ecc_fi_ctrl.gds")
-if [ "$n" = "0" ]; then say "PASS  ctrl frozen GDS official DRC (0 markers)"; else say "FAIL  ctrl frozen GDS official DRC ($n markers)"; fail=1; fi
-check "ctrl frozen GDS extra checks" "extra checks: all clean" bash scripts/extra_checks.sh "$B/check/ecc_fi_ctrl.gds"
+say "== control block and decoder block"
+check "ctrl + ecc_dec RTL testbench (chip-core logic)" "TB RESULT: PASS" make -C designs/etri050/ctrl sim
+check "ecc_dec RTL exhaustive testbench" "TB RESULT: PASS \(2048 of 2048" make -C designs/etri050/ctrl dec_sim
+check "ctrl + ecc_dec gate-level testbenches" "TB RESULT: PASS \(2048 of 2048" make -C designs/etri050/ctrl gatesim
+check "ctrl + ecc_dec frozen netlist testbenches" "TB RESULT: PASS \(2048 of 2048" make -C designs/etri050/ctrl macrosim
+for blk in ecc_fi_ctrl ecc_dec; do
+  gzip -dc "$D/ctrl/macro/$blk.gds.gz" > "$B/check/$blk.gds"
+  n=$(drc_count "$B/check/$blk.gds")
+  if [ "$n" = "0" ]; then say "PASS  $blk frozen GDS official DRC (0 markers)"; else say "FAIL  $blk frozen GDS official DRC ($n markers)"; fail=1; fi
+done
+check "ctrl + ecc_dec frozen GDS extra checks" "extra checks: all clean" bash scripts/extra_checks.sh \
+  "$B/check/ecc_fi_ctrl.gds" "$B/check/ecc_dec.gds"
 
 say "== SRAM blocks (regenerated)"
 check "8T cell and 15x8 array: Magic DRC, official DRC, LVS" "PASS  ETRI-CHECK sram_array" \

@@ -10,6 +10,8 @@ core wiring must reach each port. Magic reads it with the kit's ETRI GDS style, 
 writes a flat netlist.
 Reference side, written from the design and not from the drawing:
   control block   ctrl/macro/ecc_fi_ctrl.spc + the kit's standard cell netlist (khu_etri050_stdcells.spice)
+  decoder block   ctrl/macro/ecc_dec.spc (the same cells); its inputs are the control block's R, VIEW, V_DIR,
+                  HALF, its outputs the output pads
   SRAM macro      gen/colper.py (sram/build/sch/sram_macro.spice), decoupling gen/decap.py
   chip            the pad pins (pins.csv) and the block-to-block nets below
 Netgen compares the two with the kit's setup (etri050_setup.tcl). Results: build/lvs/core_lvs.out.
@@ -80,21 +82,29 @@ quit -noprompt
 
 
 def bus(name):
-    """Control block pin -> chip net: ADDR[2] -> ADDR2, DED_FLAG -> DED, vdd -> VDD, gnd -> VSS."""
+    """Block pin -> chip net: ADDR[2] -> ADDR2, R[5] -> R5, DED_FLAG -> DED, vdd -> VDD, gnd -> VSS."""
     return {"vdd": "VDD", "gnd": "VSS", "DED_FLAG": "DED", "SEC_FLAG": "SEC"}.get(name, re.sub(r"\[(\d+)\]", r"\1", name))
+
+
+def ports(text, name):
+    """Port list of subcircuit name (continuation lines joined)."""
+    head = re.search(r"^\.subckt %s (.*?)\n(?!\+)" % re.escape(name), text, re.S | re.M)
+    return head.group(1).replace("\n+", " ").split()
 
 
 def reference(pins):
     ctrl = (D / "ctrl/macro/ecc_fi_ctrl.spc").read_text()
-    head = re.search(r"^\.subckt ecc_fi_ctrl (.*?)\n(?!\+)", ctrl, re.S | re.M)
-    cports = head.group(1).replace("\n+", " ").split()
+    cports = ports(ctrl, "ecc_fi_ctrl")
+    decs = (D / "ctrl/macro/ecc_dec.spc").read_text()
+    dports = ports(decs, "ecc_dec")
     macro = (D / "sram/build/sch/sram_macro.spice").read_text()
     mports = re.search(r"^\.subckt sram_macro (.*)$", macro, re.M).group(1).split()
     parts = [f"* reference netlist of the chip core (written by core_lvs.py)",
-             (KIT / "digital_ETRI/khu_etri050_stdcells.spice").read_text(), ctrl, macro,
+             (KIT / "digital_ETRI/khu_etri050_stdcells.spice").read_text(), ctrl, decs, macro,
              (D / "sram/build/sch/decap_vddw.spice").read_text(), (D / "sram/build/sch/decap_vdda.spice").read_text(),
              f".subckt ecc_sram_core {' '.join(pins)}",
              "Xctrl " + " ".join(bus(p) for p in cports) + " ecc_fi_ctrl",
+             "Xdec " + " ".join(bus(p) for p in dports) + " ecc_dec",
              "Xmacro " + " ".join(mports) + " sram_macro",
              "Xdw VDDW VSS decap_vddw",
              "Xda VDDA VSS decap_vdda",
