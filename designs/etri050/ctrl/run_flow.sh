@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Place and route the control block (ecc_fi_ctrl) with qflow and the ETRI 0.5 um open-source kit.
+# Place and route a digital block with qflow and the ETRI 0.5 um open-source kit:
+#   bash run_flow.sh                 the control block ecc_fi_ctrl (work directory build/qflow)
+#   TOP=ecc_dec bash run_flow.sh     the decoder block ecc_dec (work directory build/qflow_ecc_dec)
 # The steps are those of the kit's RTL_Project/ETRI050 Makefile (synthesize, place, sta,
 # route, migrate, lvs) followed by the kit's layout checks (run_drc.sh, run_lvs.sh,
 # check_via_stack.py), i.e. the flow used for the FIR_PE chip (MPW240925002).
 #
-# Work directory: build/qflow (recreated each run). qflow finds the technology in
-# build/qflow/tech/etri050, which links the kit files under the names tech/etri050.sh expects.
-# Summary: build/qflow/flow_summary.txt
+# Work directory: build/qflow or build/qflow_<TOP> (recreated each run). qflow finds the technology in
+# <work>/tech/etri050, which links the kit files under the names tech/etri050.sh expects.
+# Summary: <work>/flow_summary.txt
 set -uo pipefail
 # GrayWolf opens its graphics window when DISPLAY is set (etri050-env.sh sets :1 for the noVNC desktop);
 # without an X server there it exits with status 2, so the flow always runs it without graphics.
@@ -17,8 +19,8 @@ REPO="$(cd "$HERE/../../.." && pwd)"
 KIT="${ETRI050_DK:-}"
 [ -z "$KIT" ] && [ -d "$REPO/.pdk/ETRI050_DesignKit" ] && KIT="$REPO/.pdk/ETRI050_DesignKit"
 [ -z "$KIT" ] && KIT="$HOME/ETRI050_DesignKit"
-TOP=ecc_fi_ctrl
-W="$HERE/build/qflow"
+TOP="${TOP:-ecc_fi_ctrl}"
+if [ "$TOP" = ecc_fi_ctrl ]; then W="$HERE/build/qflow"; else W="$HERE/build/qflow_$TOP"; fi
 
 die() { echo "[flow] ERROR: $*" >&2; exit 1; }
 [ -f "$KIT/tech/etri050.sh" ] || die "kit not found at $KIT (run scripts/setup-etri050.sh)"
@@ -58,16 +60,25 @@ export QFLOW_TECH_DIR="$T"
 # project settings and placement parameters from the kit template; pin sides from this design.
 # One change to the kit's GrayWolf parameters: the core aspect ratio (height / width, read as
 # TWMC*chip.aspect.ratio; the kit template uses 1.0 and qflow's own GUI edits the same line).
-# The block sits left of the SRAM array; its right side carries the word lines and column signals.
-# 1.02 rather than 1.0: with the present pin groups, 1.0 leaves one VIA2 stacked on a VIA1
-# (11.VIA2.S_Stack); 1.02 gives the same die size without it (the frozen macro is this run).
-ASPECT="${ASPECT:-1.02}"
+# The control block sits left of the SRAM array; its right side carries the word lines and column signals,
+# so its width (spines included) must stay under about 490 um: its gnd spine has to end left of the word-line
+# tracks of chip/assemble.py (x 968 and up). Without the decoder it has fewer cells than before but 14 pins on
+# the top side (FI_POS and the read word R, VIEW, V_DIR, HALF for ecc_dec): at the kit's spacing (no fill)
+# the router leaves nets unrouted (16 at 1.02, 17 at 1.10). With fill cells to a placement density of 0.85
+# every net routes; 1.02 and 1.06 give a block 519.6 um wide (too wide), 1.12 one VIA2 stacked on a VIA1
+# (11.VIA2.S_Stack), 1.18 a block 483.6 x 517.05 um with every net routed, flat LVS matching, no stacked
+# via and official DRC 0 after the notch fill and grid snap. The frozen macro is this run.
+# The decoder block ecc_dec sits above the top channel, under the N pad wiring: wide and low, 0.55 at the
+# kit's spacing gives 456.6 x 225.3 um, every net routed, flat LVS matching, official DRC 0.
+if [ "$TOP" = ecc_fi_ctrl ]; then ASPECT="${ASPECT:-1.18}"; DENSITY="${DENSITY:-0.85}"; else ASPECT="${ASPECT:-0.55}"; fi
 cp "$KIT/scripts/RTL_Project/ETRI050/project_vars.sh"        "$W/project_vars.sh"
 echo 'set route_show = 0   # batch run: no qrouter display window' >> "$W/project_vars.sh"
+# optional placement density (qflow decongest adds fill cells to reach it; unset = GrayWolf's own spacing)
+if [ -n "${DENSITY:-}" ]; then echo "set initial_density = $DENSITY" >> "$W/project_vars.sh"; fi
 sed "s/^TWMC\*chip.aspect.ratio.*/TWMC*chip.aspect.ratio : $ASPECT/" \
     "$KIT/scripts/RTL_Project/ETRI050/layout/TOP_MODULE.par" > "$W/layout/$TOP.par"
 grep -q "chip.aspect.ratio : $ASPECT" "$W/layout/$TOP.par" || die "aspect ratio line not found in the kit .par"
-cp "$HERE/layout/$TOP.cel2"                                  "$W/layout/$TOP.cel2"
+cp "${CEL2:-$HERE/layout/$TOP.cel2}"                         "$W/layout/$TOP.cel2"
 
 cd "$W" || die "cannot enter $W"
 step() {   # step <name> <command...>

@@ -1,0 +1,20 @@
+# ecc_dec pins: name layer x1 y1 x2 y2 (um, coordinates of GDS cell ecc_dec_F before the 0.01 um snap; flabels of qflow layout/ecc_dec.mag scaled by its magscale)
+DED_FLAG metal2 425.550 -3.450 426.450 -2.550
+DOUT[0] metal2 245.550 -3.450 246.450 -2.550
+DOUT[1] metal2 389.550 -3.450 390.450 -2.550
+DOUT[2] metal2 401.550 -3.450 402.450 -2.550
+DOUT[3] metal2 410.550 -3.450 411.450 -2.550
+HALF metal2 236.550 -3.450 237.450 -2.550
+R[0] metal2 50.550 -3.450 51.450 -2.550
+R[1] metal2 56.550 -3.450 57.450 -2.550
+R[2] metal2 167.550 -3.450 168.450 -2.550
+R[3] metal2 173.550 -3.450 174.450 -2.550
+R[4] metal2 197.550 -3.450 198.450 -2.550
+R[5] metal2 203.550 -3.450 204.450 -2.550
+R[6] metal2 209.550 -3.450 210.450 -2.550
+R[7] metal2 215.550 -3.450 216.450 -2.550
+SEC_FLAG metal2 416.550 -3.450 417.450 -2.550
+VIEW metal2 224.550 -3.450 225.450 -2.550
+V_DIR metal2 230.550 -3.450 231.450 -2.550
+gnd metal1 438.300 0.300 447.300 0.300
+vdd metal1 -9.300 0.300 -0.300 0.300
