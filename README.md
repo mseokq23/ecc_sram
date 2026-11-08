@@ -6,7 +6,7 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 - Hamming(8,4) SEC-DED. 외부 핀으로 결함을 넣는다: 쓰기 때 1/2/3비트 저장 오류, 읽기 때 1/2비트 오류, 저장된 코드워드 원시 보기
 - 셀 전원 VDDA와 비트라인 드라이버 전원 VDDW를 따로 뺐다. 이 둘을 낮춰 보존 실패·읽기 실패·쓰기 실패 같은 **실제 물리 결함**을 만들고, ECC가 그것을 고치고 검출하는지 측정한다
 - **방향을 아는 복호**: 저전압 읽기·쓰기 실패는 0 → 1 한 방향이다. 읽기 모드 11의 방향 보기(FI_POS 011)는 이 방향을 알고 같은 부호·같은 저장 비트를 다시 판정해, 표준 SEC-DED가 틀린 값으로 고치는(SEC만 나오는) 한 방향 3비트 오류 112가지를 모두 검출하고 데이터 0 워드의 2비트 오류는 고친다. 복호는 코어 위쪽의 조합 논리 블록 `ecc_dec`가 한다(새 핀 없음)
-- 제출 목표: 2027년 1차. 일정이 앞당겨지면 2026년 4차(DB 마감 12/7)
+- 제출: 2026년 4차(신청서·DB 마감 12/7)
 
 사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
 
@@ -43,6 +43,7 @@ scripts/
   render_gds.py, doc_figures.py   GDS를 PNG로 그리기, docs/img 그림 다시 그리기
   gds_xor.py              두 GDS의 도형 비교(층마다 XOR 면적)
   tap_check.py            기판·우물 접점이 모두 금속으로 전원 패드에 이어지는지(LVS가 못 보는 것)
+  float_metal.py          어디에도 이어지지 않은 금속 조각 찾기
 designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
   gen/colper.py           어레이 아래 컬럼 회로, 어레이와 합친 SRAM 매크로(sram_macro)
