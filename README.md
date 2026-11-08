@@ -12,7 +12,7 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 
 **최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`), 제출 파일 `ecc_sram_Top.zip`과 신청서용 DRC·LVS 화면도 같은 폴더에 있다. 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
 
-## 진행 상황 (2026-11-08, 브랜치 direction-ecc)
+## 진행 상황 (2026-11-08)
 
 | 블록 | 결과 |
 |---|---|

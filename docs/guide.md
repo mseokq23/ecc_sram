@@ -232,7 +232,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ### 6.1 Codespace 만들기
 
-1. 저장소 페이지에서 **Code → Codespaces → ⋯ → New with options**. Branch는 이 칩(방향 복호)이면 `direction-ecc`, Machine type은 4-core를 권장한다(2-core도 된다). **Create codespace**
+1. 저장소 페이지에서 **Code → Codespaces → ⋯ → New with options**. Branch `main`, Machine type은 4-core를 권장한다(2-core도 된다). **Create codespace**
 2. 처음 한 번은 이미지(IIC-OSIC-TOOLS 2026.10)를 받고 `scripts/setup-all.sh`가 ETRI 킷, PDK 모델, qflow를 설치한다. 진행은 명령 팔레트(Ctrl+Shift+P)의 **Codespaces: View Creation Log**에서 보이고, `[setup] done.`이 나오면 끝이다
 3. 새 터미널을 연다. `klayout-etri` 같은 셸 함수가 `~/.bashrc`로 들어온다. 점검은 `bash scripts/smoke-test.sh`
 
