@@ -5,8 +5,8 @@ W3,ADDR0,PIC,Y,주소 0,디지털
 W4,ADDR1,PIC,Y,주소 1,디지털
 W5,ADDR2,PIC,Y,주소 2,디지털
 W6,ADDR3,PIC,Y,주소 3,디지털
-W7,DIN3,PIC,Y,쓰기 데이터 3,디지털 0/5 V
-N1,FI_POS0,PIC,Y,결함 위치 0 · 원시 보기 반쪽 선택,디지털
+W7,DIN3,PIC,Y,쓰기 데이터 3 · 방향 보기 반전 켜기(읽기 때 0),디지털 0/5 V
+N1,FI_POS0,PIC,Y,결함 위치 0 · 원시 보기 반쪽 · 방향 보기 방향,디지털
 N2,FI_POS1,PIC,Y,결함 위치 1,디지털
 N3,FI_POS2,PIC,Y,결함 위치 2,디지털
 N4,PVDD,PVDD,VDD,링·코어 전원,5 V (4.5–5.5 V)

@@ -1,0 +1,24 @@
+padgroup Ctrl permute
+twpin_R[0]               nonfixed
+twpin_R[1]               nonfixed
+twpin_R[2]               nonfixed
+twpin_R[3]               nonfixed
+twpin_R[4]               nonfixed
+twpin_R[5]               nonfixed
+twpin_R[6]               nonfixed
+twpin_R[7]               nonfixed
+twpin_VIEW               nonfixed
+twpin_V_DIR              nonfixed
+twpin_HALF               nonfixed
+restrict side B
+sidespace 0.03 0.45
+
+padgroup Pads_Out permute
+twpin_DOUT[0]            nonfixed
+twpin_DOUT[1]            nonfixed
+twpin_DOUT[2]            nonfixed
+twpin_DOUT[3]            nonfixed
+twpin_SEC_FLAG           nonfixed
+twpin_DED_FLAG           nonfixed
+restrict side B
+sidespace 0.6 0.97

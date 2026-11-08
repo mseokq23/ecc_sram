@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Transistor-level simulation of the whole chip core as drawn: the control block, the SRAM macro and the
-decoupling, extracted together from build/lvs/ecc_sram_core_lvs.gds (chip/core_lvs.py) with Magic, devices
+"""Transistor-level simulation of the whole chip core as drawn: the control block, the decoder block, the SRAM
+macro and the decoupling, extracted together from build/lvs/ecc_sram_core_lvs.gds (chip/core_lvs.py) with Magic, devices
 and parasitic capacitance (x CAP_SCALE), official PDK models. Inputs are driven at the core side of the pads.
 
   python3 designs/etri050/sim/chip/chip_sim.py [--corner TT --temp 27 --vdd 5 --vdda 5 --vddw 5]
@@ -8,8 +8,9 @@ and parasitic capacitance (x CAP_SCALE), official PDK models. Inputs are driven 
       (the second form reuses the last extraction, so several corners can run side by side)
 
 The sequence writes array words, the standard-cell reference word (address 15) and words with stored
-faults, then reads them back in every read mode; each read is compared with a model of the ECC
-(Hamming(8,4) SEC-DED, fault masks k, k^1, k^2). CLK period 200 ns: inputs change 5 ns after CLK falls,
+faults, then reads them back in every read mode, the direction view included (FI_MODE 11, FI_POS 011 and 010,
+with and without the DIN flip); each read is compared with a model of the ECC (Hamming(8,4) SEC-DED, fault
+masks k, k^1, k^2, the direction-aware decoding of ctrl/ecc_dec/ecc_dec.v). CLK period 200 ns: inputs change 5 ns after CLK falls,
 CLK = 1 for the second half, outputs are sampled 5 ns before CLK falls.
 """
 from __future__ import annotations
@@ -51,14 +52,26 @@ def mask(mode, k, write):
     return {1: h1, 2: h2, 3: h3 if write else 0}.get(mode, 0)
 
 
-def read_model(stored, mode, k):
-    r = stored ^ mask(mode, k, False)
+def read_model(stored, mode, k, din=0):
+    """DOUT, SEC, DED of a read. FI_MODE 11 with FI_POS[2:1] = 01 is the direction view: R decoded knowing that
+    a bad bit can only have gone 0 -> 1 (FI_POS[0] = 1) or 1 -> 0, DIN[3] = 1 flipping bit DIN[2:0] of R first;
+    {SEC, DED} = 10 one bit corrected, 11 two bits corrected, 01 detected. Other FI_MODE 11 reads: raw view."""
+    vdir = mode == 3 and (k >> 1) == 1
+    r = stored ^ mask(mode, k, False) ^ ((1 << (din & 7)) if vdir and din & 8 else 0)
     bit = lambda i: (r >> i) & 1
     s = 0
     for i in range(1, 8):
         if bit(i):
             s ^= i
     q = bin(r).count("1") & 1
+    data = lambda x: sum(((x >> j) & 1) << i for i, j in enumerate((3, 5, 6, 7)))
+    if vdir:
+        u = r if k & 1 else ~r & 0xFF                # bits that can be bad
+        z1 = q and (u >> s) & 1                      # the single bad bit is possible
+        z2 = bin(u).count("1") == 2                  # two bad bits, a pair {i, i^S} (Q = 0, S != 0)
+        zbad = (q or s != 0) and not z1 and not z2
+        c = r ^ ((1 << s) if z1 else 0) ^ (u if z2 else 0)
+        return data(c), int(bool(z1 or z2)), int(bool(z2 or zbad))
     c = r ^ (1 << s) if q else r
     if mode == 3:
         dout = [bit(3), bit(5), bit(6), bit(7)] if k & 1 else [bit(0), bit(1), bit(2), bit(4)]
@@ -67,12 +80,21 @@ def read_model(stored, mode, k):
     return sum(v << i for i, v in enumerate(dout)), q, int(s != 0 and not q)
 
 
-SEQ = [  # (op, addr, data, fi_mode, fi_pos)
+SEQ = [  # (op, addr, data (DIN, also on reads), fi_mode, fi_pos)
     ("W", 0, 0xA, 0, 0), ("W", 5, 0x3, 0, 0), ("W", 14, 0x9, 0, 0), ("W", 15, 0x6, 0, 0),
     ("W", 9, 0xC, 1, 3), ("W", 12, 0x5, 2, 6), ("W", 7, 0xF, 3, 2),
     ("R", 0, 0, 0, 0), ("R", 5, 0, 0, 0), ("R", 14, 0, 0, 0), ("R", 15, 0, 0, 0),
     ("R", 9, 0, 0, 0), ("R", 9, 0, 3, 1), ("R", 9, 0, 3, 0), ("R", 12, 0, 0, 0), ("R", 7, 0, 0, 0),
     ("R", 0, 0, 1, 5), ("R", 0, 0, 2, 4), ("R", 15, 0, 2, 1), ("W", 0, 0x5, 0, 0), ("R", 0, 0, 0, 0),
+    # direction view: data 0 with two bits stored 0 -> 1 (corrected, SEC = DED = 1; the standard read says DED),
+    # data 0 with three (the standard read corrects a good bit, SEC only; the direction view detects), data F
+    # with two bits stored 1 -> 0 read in both directions, one-bit flips by DIN (corrected one way, detected
+    # the other), the reference word with a one-bit stored error, a raw view with FI_POS[2] = 1
+    ("W", 4, 0x0, 2, 6), ("R", 4, 0, 3, 3), ("R", 4, 0, 0, 0),
+    ("W", 11, 0x0, 3, 1), ("R", 11, 0, 0, 0), ("R", 11, 0, 3, 3),
+    ("W", 13, 0xF, 2, 2), ("R", 13, 0, 3, 2), ("R", 13, 0, 3, 3),
+    ("R", 5, 0xD, 3, 3), ("R", 5, 0xD, 3, 2), ("R", 14, 0xA, 3, 3),
+    ("W", 15, 0x6, 1, 0), ("R", 15, 0, 3, 3), ("R", 15, 0, 0, 0), ("R", 9, 0, 3, 5),
 ]
 
 
@@ -146,7 +168,7 @@ def deck(net, ports, a):
         if op == "W":
             stored[addr] = encode(data) ^ mask(mode, k, True)
         else:
-            samples.append((i, t0 + T - 5e-9, read_model(stored[addr], mode, k), (addr, mode, k)))
+            samples.append((i, t0 + T - 5e-9, read_model(stored[addr], mode, k, data), (addr, mode, k, data)))
     t_end = len(SEQ) * T
     wave["CLK"].append((t_end, 0))
     L = [f"* chip core {a.corner} {a.temp}C VDD {a.vdd} VDDA {a.vdda} VDDW {a.vddw}",
@@ -202,7 +224,7 @@ def main(argv=None) -> int:
     # ngspice prints measurement names in lower case
     vals = {m[1].lower(): float(m[2]) for m in re.finditer(r"^(s\d+_\w+)\s*=\s*([-\d.eE+]+)", log, re.M)}
     bad = 0
-    for i, ts, (dout, sec, ded), (addr, mode, k) in samples:
+    for i, ts, (dout, sec, ded), (addr, mode, k, din) in samples:
         got = [vals.get(f"s{i}_{n}".lower()) for n in OUTPUTS]
         if None in got:
             print(f"read {i}: no sample (see {BUILD / (tag + '.log')})")
@@ -213,7 +235,7 @@ def main(argv=None) -> int:
         ok = (g_dout, bits[4], bits[5]) == (dout, sec, ded)
         bad += not ok
         dev = max(min(abs(v), abs(a.vdd - v)) for v in got)
-        print(f"read addr {addr:2d} mode {mode} pos {k}: DOUT {g_dout:X} SEC {bits[4]} DED {bits[5]}"
+        print(f"read addr {addr:2d} mode {mode} pos {k} din {din:X}: DOUT {g_dout:X} SEC {bits[4]} DED {bits[5]}"
               f"  expected {dout:X} {sec} {ded}  {'ok' if ok else 'WRONG'}  (outputs at most {dev:.3f} V off a rail)")
     print(f"{tag}: {len(samples)} reads, {bad} wrong")
     return 0 if bad == 0 else 1

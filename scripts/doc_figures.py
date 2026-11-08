@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Figures for docs/guide.md, drawn from the GDS files with KLayout (scripts/render_gds.py) and labelled with
-Pillow: the final chip with its pins, the core, the SRAM macro, the column circuits, the 8T cell and the
-control block.
+Pillow: the final chip with its pins, the core, the SRAM macro, the column circuits, the 8T cell, the
+control block and the decoder block.
 
   python3 scripts/doc_figures.py              # -> docs/img/*.png
+  python3 scripts/doc_figures.py <chip.gds>   # the same from another chip GDS (e.g. chip/build, to preview)
 
-Inputs: designs/etri050/chip/final/ecc_sram_Top.gds.gz, designs/etri050/ctrl/macro/ecc_fi_ctrl.gds.gz and the
+Inputs: designs/etri050/chip/final/ecc_sram_Top.gds.gz, designs/etri050/ctrl/macro/ecc_fi_ctrl.gds.gz,
+designs/etri050/ctrl/macro/ecc_dec.gds.gz and the
 SRAM blocks that check_all.sh (or gen/sram8t.py, gen/colper.py, gen/decap.py) writes to
 designs/etri050/sram/build. Korean labels need a CJK font (Noto Sans CJK or Nanum).
 Coordinates below are in um, the same as in the GDS files.
@@ -17,6 +19,7 @@ import gzip
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -132,7 +135,8 @@ def chip(gds):
                 f.text(x, die1 + 8, label, 19, colour, "mb", angle=90)
             else:
                 f.text(x, die0 - 8, label, 19, colour, "mt", angle=90)
-    blocks = [((470, 560, 959.6, 1041.15), "제어 블록\necc_fi_ctrl"),
+    blocks = [((470, 560, 953.6, 1077.15), "제어 블록\necc_fi_ctrl"),
+              ((560, 1150.2, 1016.6, 1376.1), "복호 블록\necc_dec"),
               ((1065, 567.4, 1246.5, 1066.3), "SRAM\n매크로"),
               ((1290, 470, 1442.4, 756.5), "디커플링\nVDDW"),
               ((1290, 770, 1442.4, 913.7), "디커플링\nVDDA")]
@@ -140,30 +144,34 @@ def chip(gds):
         f.rect(x1, y1, x2, y2, YELLOW, 3)
         f.text((x1 + x2) / 2, (y1 + y2) / 2, s, 22, YELLOW)
     f.rect(442, 442, 1458, 1458, CYAN, 1)
-    f.text(950, 1300, "코어 영역 1016 × 1016 µm", 20, CYAN)
+    f.text(1240, 1260, "코어 영역\n1016 × 1016 µm", 20, CYAN)
     f.save("chip.png")
 
 
 def core(gds):
     f = Fig(gds, (440, 440, 1460, 1460), 1600)
-    f.rect(470, 560, 959.6, 1041.15, YELLOW, 3)
-    f.text(715, 800, "제어 블록 ecc_fi_ctrl\n표준셀 347개 (qflow 배치·배선)\n부호기 · 결함 마스크 · 행 해독\n"
-           "기준 워드(주소 15) · 신드롬 · SEC/DED", 22, YELLOW)
+    f.rect(470, 560, 953.6, 1077.15, YELLOW, 3)
+    f.text(712, 820, "제어 블록 ecc_fi_ctrl\n(qflow 배치·배선)\n부호기 · 결함 마스크 · 행 해독\n"
+           "기준 워드(주소 15) · 읽기 마스크", 22, YELLOW)
+    f.rect(560, 1150.2, 1016.6, 1376.1, YELLOW, 3)
+    f.text(788, 1263, "복호 블록 ecc_dec (조합 논리)\n표준 복호 · 원시 보기 · 방향 복호\n→ 출력 패드 6", 22, YELLOW)
     f.rect(1065, 567.4, 1246.5, 1066.3, YELLOW, 3)
     f.text(1155.75, 860, "SRAM 매크로\n8T 셀 15 × 8\n+ 컬럼 회로", 22, YELLOW)
     f.rect(1290, 470, 1442.4, 756.5, YELLOW, 3)
     f.text(1366.2, 613, "VDDW\n디커플링\n57 pF", 21, YELLOW)
     f.rect(1290, 770, 1442.4, 913.7, YELLOW, 3)
     f.text(1366.2, 842, "VDDA\n디커플링\n28.5 pF", 21, YELLOW)
-    f.text(1012, 1180, "워드라인 30개\nWWL·RWL\n(metal3 → metal2 → metal1)", 18, CYAN, "mb")
-    f.line(1012, 1180, 1012, 1050, CYAN)
+    f.text(1010, 1000, "워드라인\n30개", 16, CYAN)
     f.text(760, 500, "아래 채널: S 패드 입력, PRE_N · WD · SENSE", 18, CYAN)
-    f.text(700, 1235, "위 채널: 출력 6 · N 패드 입력 3", 18, CYAN)
-    f.line(700, 1220, 700, 1110, CYAN)
-    f.text(720, 1395, "VDD 띠 (metal3, N4 패드 → 제어 블록)", 18, CYAN)
-    f.line(720, 1408, 720, 1437, CYAN)
-    for y, s in ((549, "VSS"), (583, "VDDW"), (902, "VDDA")):    # metal3 straps between macro and decaps
-        f.text(1268, y, s, 15, CYAN)
+    f.text(1240, 1215, "위 채널 (metal3 11트랙)\n제어 → 복호 11넷 · 복호 → 출력 6넷", 18, CYAN, "mb")
+    f.line(1240, 1170, 1240, 1110, CYAN)
+    f.text(505, 1300, "FI_POS\n(N 패드\n입력 3)", 16, CYAN)
+    f.text(745, 1398, "VDD 띠 (metal3, N4 패드 → 제어 블록)", 17, CYAN)
+    f.line(745, 1406, 745, 1437, CYAN)
+    f.text(1225, 1398, "출력 DED · SEC · DOUT3 → N5–N7 패드", 17, CYAN)
+    f.line(1225, 1406, 1225, 1439, CYAN)
+    for y, s_ in ((549, "VSS"), (583, "VDDW"), (902, "VDDA")):    # metal3 straps between macro and decaps
+        f.text(1268, y, s_, 15, CYAN)
     f.save("core.png")
 
 
@@ -231,27 +239,41 @@ def cell():
 
 
 def ctrl(gds):
-    f = Fig(gds, (-15, -10, 487, 484), 760, (190, 70, 190, 70))
-    f.text(-20, 237, "왼쪽\nW 패드 입력 7\n(CLK, WE,\nADDR, DIN3)", 18, CYAN, "rm")
-    f.text(492, 237, "오른쪽\n워드라인 30\n(WWL·RWL\n→ SRAM 매크로)", 18, CYAN, "lm")
-    f.text(236, 490, "위: N 패드 입력 3 (FI_POS) · 출력 6 (DOUT, SEC, DED)", 18, CYAN, "mb")
-    f.text(236, -16, "아래: S 패드 입력 5 (FI_MODE, DIN2–0) · PRE_N · WD 8 · SENSE 8", 18, CYAN, "mt")
+    f = Fig(gds, (-15, -10, 480, 520), 760, (190, 70, 190, 70))
+    f.text(-20, 255, "왼쪽\nW 패드 입력 7\n(CLK, WE,\nADDR, DIN3)", 18, CYAN, "rm")
+    f.text(485, 255, "오른쪽\n워드라인 30\n(WWL·RWL\n→ SRAM 매크로)", 18, CYAN, "lm")
+    f.text(232, 526, "위: N 패드 입력 3 (FI_POS) · 복호 블록으로 11 (R[7:0], VIEW, V_DIR, HALF)", 18, CYAN, "mb")
+    f.text(232, -16, "아래: S 패드 입력 5 (FI_MODE, DIN2–0) · PRE_N · WD 8 · SENSE 8", 18, CYAN, "mt")
     f.save("ctrl.png")
+
+
+def dec(gds):
+    f = Fig(gds, (-15, -12, 453, 225), 760, (40, 70, 40, 110))
+    f.text(219, 231, "복호 블록 ecc_dec: 표준 복호 · 원시 보기 · 방향 복호 (조합 논리, 플립플롭 없음)", 18, CYAN, "mb")
+    f.text(70, -18, "아래 왼쪽: 제어 블록에서 11\n(R[7:0], VIEW, V_DIR, HALF)", 18, CYAN, "mt")
+    f.text(330, -18, "아래 오른쪽: 출력 6\n(DOUT[3:0], SEC, DED → 패드)", 18, CYAN, "mt")
+    f.save("dec.png")
 
 
 def main():
     tmp = Path(tempfile.mkdtemp())
     try:
         top = tmp / "ecc_sram_Top.gds"
-        top.write_bytes(gzip.decompress((CHIP / "final/ecc_sram_Top.gds.gz").read_bytes()))
-        ctl = tmp / "ecc_fi_ctrl.gds"
-        ctl.write_bytes(gzip.decompress((REPO / "designs/etri050/ctrl/macro/ecc_fi_ctrl.gds.gz").read_bytes()))
+        if len(sys.argv) > 1:
+            shutil.copyfile(sys.argv[1], top)
+        else:
+            top.write_bytes(gzip.decompress((CHIP / "final/ecc_sram_Top.gds.gz").read_bytes()))
+        blk = {}
+        for name in ("ecc_fi_ctrl", "ecc_dec"):
+            blk[name] = tmp / f"{name}.gds"
+            blk[name].write_bytes(gzip.decompress((REPO / f"designs/etri050/ctrl/macro/{name}.gds.gz").read_bytes()))
         chip(top)
         core(top)
         macro()
         column()
         cell()
-        ctrl(ctl)
+        ctrl(blk["ecc_fi_ctrl"])
+        dec(blk["ecc_dec"])
     finally:
         shutil.rmtree(tmp)
 
