@@ -6,8 +6,9 @@ assemble.py) against the circuit it was built from.
 
 Layout side: the core GDS is flattened and its block labels are removed; the pad cells' core-side ports
 (metal2 rectangles from pad_pins.json) are drawn in and labelled with the pad's pin name (pins.csv), so the
-core wiring must reach each port. Magic reads it with the kit's ETRI GDS style, extracts every device and
-writes a flat netlist.
+core wiring must reach each port. The pad ring's VDD rail, which joins the two VDD pads on the chip, is drawn
+in as a metal2 path outside the core (see layout_gds). Magic reads it with the kit's ETRI GDS style, extracts
+every device and writes a flat netlist.
 Reference side, written from the design and not from the drawing:
   control block   ctrl/macro/ecc_fi_ctrl.spc + the kit's standard cell netlist (khu_etri050_stdcells.spice)
   decoder block   ctrl/macro/ecc_dec.spc (the same cells); its inputs are the control block's R, VIEW, V_DIR,
@@ -49,16 +50,48 @@ def layout_gds():
     # core wire that stops short of its port leaves the label on a separate node and the comparison fails
     m2 = ly.layer(34, 0)
     names = set()
-    for p in json.loads((B / "pad_pins.json").read_text())["pads"]:
+    pads = json.loads((B / "pad_pins.json").read_text())["pads"]
+    for p in pads:
         name = {"PVDD": "VDD", "PVSS": "VSS"}.get(p["cell"], p["pin"])
         x1, y1, x2, y2 = (round(v * 1000) for v in p["rect"])
         top.shapes(m2).insert(kdb.Box(x1, y1, x2, y2))
         top.shapes(m2).insert(kdb.Text(name, kdb.Trans(kdb.Vector((x1 + x2) // 2, (y1 + y2) // 2))))
         names.add(name)
+    pad_ring_vdd(top, m2, pads)
     L.mkdir(parents=True, exist_ok=True)
     out = L / "ecc_sram_core_lvs.gds"
     ly.write(str(out))
     return out, sorted(names)
+
+
+def pad_ring_vdd(top, m2, pads):
+    """Draw the pad ring's VDD rail between the two VDD pads (N4 above the core, S7 below it).
+
+    The core feeds the control and decoder blocks from N4 and the macro from S7 and does not join the two
+    itself (assemble.py); on the chip the VDD bus that runs through the ETRI pad cells joins them. Without
+    this rail the extraction sees two VDD nodes: Magic 8.3.105 merged them by their label name, Magic 8.3.685
+    (IIC-OSIC-TOOLS 2026.10) keeps them apart (VDD_uq0). A VDD part that reaches neither pad still stays a
+    separate node.
+    """
+    um = 1000
+    vdd = sorted((p for p in pads if p["cell"] == "PVDD"), key=lambda p: p["side"])
+    if [p["side"] for p in vdd] != ["N", "S"]:
+        sys.exit(f"expected one VDD pad above and one below the core: {[p['pad'] for p in vdd]}")
+    n, s = ([round(v * um) for v in p["rect"]] for p in vdd)
+    before = kdb.Region(top.begin_shapes_rec(m2))
+    bb, w = top.bbox(), 4 * um
+    yt, yb, xr = bb.top + 6 * um, bb.bottom - 6 * um - w, bb.right + 6 * um
+    nx, sx = (n[0] + n[2]) // 2, (s[0] + s[2]) // 2
+    ring = kdb.Region()
+    ring.insert(kdb.Box(nx - w // 2, n[1], nx + w // 2, yt + w))      # up from the N pad port
+    ring.insert(kdb.Box(nx - w // 2, yt, xr + w, yt + w))             # east above the core
+    ring.insert(kdb.Box(xr, yb, xr + w, yt + w))                      # down east of the core
+    ring.insert(kdb.Box(sx - w // 2, yb, xr + w, yb + w))             # west below the core
+    ring.insert(kdb.Box(sx - w // 2, yb, sx + w // 2, s[3]))          # up into the S pad port
+    ports = kdb.Region([kdb.Box(*n), kdb.Box(*s)])
+    if not ((ring - ports).sized(um) & (before - ports)).is_empty():
+        sys.exit("the drawn VDD rail comes within 1 um of other metal2")
+    top.shapes(m2).insert(ring.merged())
 
 
 def extract(gds: Path):
