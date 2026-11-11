@@ -1,5 +1,5 @@
-ECC 8T SRAM chip check, 2026-11-08 10:56 KST, repo 37164d5
-kit 4b332a7 2026-11-02, KLayout 0.28.16, magic 8.3.105, ngspice-42
+ECC 8T SRAM chip check, 2026-11-11 19:53 KST, repo b11fdd2
+kit 7de18ad 2026-11-10, KLayout 0.30.12, magic 8.3.685, ngspice-47
 
 == control block and decoder block
 PASS  ctrl + ecc_dec RTL testbench (chip-core logic)
@@ -19,7 +19,7 @@ PASS  pad ring (ETRI GPIO cells) official DRC
 PASS  chip assembly
 PASS  chip official DRC (KLayout deck from ETRI's Calibre deck): 0 markers
 PASS  chip extra checks (Calibre-only 73, rules 7-12, antenna)
-      ecc_sram_Top.gds: 0 markers in 73 Calibre-only checks, 0 in the seal ring zone, 0 not in the baseline (36 s)
+      ecc_sram_Top.gds: 0 markers in 73 Calibre-only checks, 0 in the seal ring zone, 0 not in the baseline (34 s)
       ecc_sram_Top.gds: 64 markers in rules 7-12 (rule document values), 0 not in the baseline
       ecc_sram_Top.gds: 0 nets over the antenna limits (rule document v1.1, no diode credit), 0 without diffusion at that step
 PASS  core LVS (transistor level, Magic + Netgen)

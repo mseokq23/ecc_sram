@@ -11,5 +11,5 @@ GPIO 배치: PANA 2, PIC 15, POB8 6, PVDD 2, PVSS 3, PCORNER 4, IOFILLER50 8; �
 우물: 게이트 5390개, N-well 밖 p형 0, N-well 안 n형 0, 주입 없음 0, 주입 둘 0 -> ok
 기판: p+ 기판 접촉을 가진 넷 7개, 기판에 붙은 본딩 패드 PVSS 3개 · 그 밖 0개 -> ok
 제출 GDS 검사: 통과 (실패 0, 경고 0)
-GDS: designs/etri050/chip/build/submit/ecc_sram_Top.gds 4,744,300 B, sha256 73fd2967af38442337453bfe9a075667af3e3f083418ea5a6b2153983f5cccb4
-제출 zip: designs/etri050/chip/final/ecc_sram_Top.zip 1,029,331 B (안에 ecc_sram_Top.gds, CRC 정상), sha256 842d412f3d196b02d3612724ad1e75cfa9f2fa665329221241e6f8623e7622d8 — 신청서 Top Cell Name: ecc_sram_Top
+GDS: designs/etri050/chip/build/submit/ecc_sram_Top.gds 4,742,062 B, sha256 14540645e848601ef3632b1caaeb947d719e1383ceb974edd8282521dd72a1eb
+제출 zip: designs/etri050/chip/final/ecc_sram_Top.zip 1,016,765 B (안에 ecc_sram_Top.gds, CRC 정상), sha256 cba3cc298c91b91a9c7e186d831e5f76f1384d7864101981240d07cd96c27334 — 신청서 Top Cell Name: ecc_sram_Top
