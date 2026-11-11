@@ -1,6 +1,6 @@
 # ECC 8T SRAM 칩 안내
 
-마이칩(ETRI 0.5 µm CMOS) 제출용 최종 GDS와 그 내용을 정리한 문서다. 칩의 주제, 각 부분이 하는 일, 검증 결과, Codespaces에서 결과물을 여는 방법을 담았다. 세부 사양은 [spec.md](spec.md), 단계별 검증 과정과 판단은 [verification.md](verification.md)에 있다.
+마이칩(ETRI 0.5 µm CMOS) 제출용 최종 GDS와 그 내용을 정리한 문서다. 칩의 주제, 각 부분이 하는 일, 검증 결과, Codespaces에서 결과물을 여는 방법을 담았다. 세부 사양은 [spec.md](spec.md), 단계별 검증 과정과 판단은 [verification.md](verification.md)에 있고, 전체를 요약한 최종 보고서는 [report.md](report.md)다.
 
 ## 1. 최종 결과물
 
@@ -32,16 +32,18 @@ ecc_sram_Top
 
 | 항목 | 값 |
 |---|---|
+| 설계명 | 저전압 SRAM 오류 실측을 위한 결함 주입·방향 인지 ECC 8T SRAM |
 | 설계 DB 파일명 (Top Cell 명) | `ecc_sram_Top.zip` (Top Cell `ecc_sram_Top`) |
 | 설계 사용 Tool | Magic 8.3, KLayout 0.28, Netgen 1.5, ngspice 42, Yosys 0.33, qflow(GrayWolf, Qrouter), Icarus Verilog 12 (오픈소스) |
 | 표준칩 배치 (MPW_PAD_28pin) | 사용 (본딩 패드 28개가 `MPW_PAD_28pin.gds`와 XOR 0) |
 | 제공한 PDK의 GPIO | 사용: PIC 15, POB8 6, PVDD 2, PVSS 3, PANA 2(VDDA·VDDW, PADR 포트), PCORNER 4, IOFILLER50 8 |
+| 칩 제공 형태 | 28pin-SOP 패키지 (only) |
 | 설계 면적 | 1칩 (패드 셀 안쪽 1016 × 1016 µm) |
 | 사용 소자 | 코어는 NMOS·PMOS만(디커플링도 MOS 커패시터). 저항·다이오드·ESD 층은 ETRI GPIO 셀 안에만 있다 |
-| Rule Check | DRC: 킷 KLayout 공식 덱 + Calibre 전용 73규칙 + 규칙 7–12 + 안테나. LVS: 코어 트랜지스터 수준(Magic 추출 + Netgen). 기생 추출: 칩 코어 모의용 Magic 추출(기생 C × 1.5) |
+| Rule Check | DRC O, LVS O, PEX O. DRC: 킷 KLayout 공식 덱 + Calibre 전용 73규칙 + 규칙 7–12 + 안테나. LVS: 코어 트랜지스터 수준(Magic 추출 + Netgen). 기생 추출: 칩 코어 모의용 Magic 추출(기생 C × 1.5) |
 | DRC/LVS 결과 화면 | `final/DRC_ecc_sram_Top.png`, `final/LVS_ecc_sram_core.png` |
 
-설계명, 칩 제공 형태(Bare Die / 28pin-SOP / 모두), PEX 칸 표시는 신청할 때 정한다.
+학생·지도교수 정보와 서명은 신청서에 직접 채운다. 1장(신청 내용)의 회로 설명과 수치는 이 문서와 [report.md](report.md)를 따른다.
 
 ## 2. 칩 주제
 
@@ -107,7 +109,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ![제어 블록](img/ctrl.png)
 
-`designs/etri050/ctrl/ecc_fi_ctrl/ecc_fi_ctrl.v`를 공개 킷의 표준셀로 합성하고 qflow로 배치·배선했다. 483.6 × 517.05 µm, 핀 75개. 배치·배선 결과는 `ctrl/macro`에 고정해 두고 칩 조립에 그대로 쓴다.
+`designs/etri050/ctrl/ecc_fi_ctrl/ecc_fi_ctrl.v`를 공개 킷의 표준셀로 합성하고 qflow로 배치·배선했다. 483.6 × 517.15 µm, 핀 75개. 배치·배선 결과는 `ctrl/macro`에 고정해 두고 칩 조립에 그대로 쓴다.
 
 | 기능 | 하는 일 |
 |---|---|
@@ -124,7 +126,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ![복호 블록](img/dec.png)
 
-`designs/etri050/ctrl/ecc_dec/ecc_dec.v`. 플립플롭이 없는 조합 논리라 전원을 켠 뒤 해 둘 일이 없다. 456.6 × 225.3 µm, 핀 19개(모두 아래 변). 위 채널 위에 놓여 출력 패드 6개를 직접 몬다.
+`designs/etri050/ctrl/ecc_dec/ecc_dec.v`. 플립플롭이 없는 조합 논리라 전원을 켠 뒤 해 둘 일이 없다. 456.6 × 225.9 µm, 핀 19개(모두 아래 변). 위 채널 위에 놓여 출력 패드 6개를 직접 몬다.
 
 | 보기 | DOUT | SEC, DED |
 |---|---|---|
@@ -138,7 +140,7 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 ![SRAM 매크로](img/macro.png)
 
-- 8T 셀 15행 × 8열(셀 18.0 × 27.3 µm) 아래에 열마다 컬럼 회로를 붙였다. 181.5 × 498.3 µm
+- 8T 셀 15행 × 8열(셀 18.0 × 27.3 µm) 아래에 열마다 컬럼 회로를 붙였다. 181.5 × 498.9 µm
 - 셀은 VDDA, 읽기 회로는 VDD, 쓰기 드라이버는 VDDW. 세 전원을 매크로 오른쪽 버스로 따로 받는다
 - 레이아웃은 `gen/sram8t.py`, `gen/colper.py`가 사각형 좌표를 계산해 Magic으로 그린다. 같은 코드가 LVS용 넷리스트도 쓴다
 
