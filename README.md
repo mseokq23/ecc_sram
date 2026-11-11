@@ -10,7 +10,7 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 
 **최종 보고서**: [docs/report.md](docs/report.md) — 칩의 목표, 구성, 동작, 검증 결과, 제출 준비, 측정 계획을 한 문서로 정리했다. 사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
 
-**최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`), 제출 파일 `ecc_sram_Top.zip`과 신청서용 DRC·LVS 화면도 같은 폴더에 있고, 같은 파일을 [릴리스 v1.0](https://github.com/mseokq23/ecc_sram/releases/tag/v1.0)에서도 받을 수 있다. 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
+**최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`), 제출 파일 `ecc_sram_Top.zip`과 신청서용 DRC·LVS 화면도 같은 폴더에 있다. 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
 
 ## 검증 결과
 

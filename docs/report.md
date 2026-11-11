@@ -17,7 +17,7 @@
 | 재현성 | 저장소를 새로 받아 다시 만든 GDS와 최종 GDS가 19개 층 모두 XOR 0 |
 | 제출 파일 | `ecc_sram_Top.zip` 1,029,331 B(안에 `ecc_sram_Top.gds`), sha256 `842d412f…7622d8` |
 
-최종 파일은 [`designs/etri050/chip/final/`](../designs/etri050/chip/final)에 있고, 같은 파일을 [릴리스 v1.0](https://github.com/mseokq23/ecc_sram/releases/tag/v1.0)에서도 받을 수 있다. 사양은 [spec.md](spec.md), 단계별 검증 기록은 [verification.md](verification.md), 결과물 보는 법은 [guide.md](guide.md)에 있다.
+최종 파일은 [`designs/etri050/chip/final/`](../designs/etri050/chip/final)에 있다. 사양은 [spec.md](spec.md), 단계별 검증 기록은 [verification.md](verification.md), 결과물 보는 법은 [guide.md](guide.md)에 있다.
 
 ## 칩의 목표와 주제
 
@@ -157,7 +157,7 @@
 
 ## 제출 준비
 
-모아팹에 올릴 설계 DB는 `ecc_sram_Top.zip` 하나다. 저장한 GDS를 풀어 제출 GDS 검사를 다시 통과시켜 만들었고, 모두 `designs/etri050/chip/final/`과 [릴리스 v1.0](https://github.com/mseokq23/ecc_sram/releases/tag/v1.0)에 있다.
+모아팹에 올릴 설계 DB는 `ecc_sram_Top.zip` 하나다. 저장한 GDS를 풀어 제출 GDS 검사를 다시 통과시켜 만들었고, 모두 `designs/etri050/chip/final/`에 있다.
 
 | 파일 | 내용 |
 |---|---|

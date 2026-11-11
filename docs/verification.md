@@ -330,6 +330,6 @@ Ubuntu 24.04에 배포판 magic 8.3.105, netgen 1.5.133, klayout 0.28.16, ngspic
 
 설계와 검증은 끝났다. 전체 정리는 [report.md](report.md)에 있다.
 
-1. 제출: 2026년 4차(신청서·DB 마감 12/7). 제출본은 main의 `chip/final`이고, 같은 파일을 릴리스 v1.0에 올렸다
+1. 제출: 2026년 4차(신청서·DB 마감 12/7). 제출본은 main의 `chip/final`이다
 2. 제출 서류: 신청서(값은 [guide.md](guide.md) 1.1, DRC·LVS 화면은 `chip/final`의 PNG)의 학생·지도교수 정보와 서명, 모아팹에 `chip/final/ecc_sram_Top.zip` 올리기
 3. 측정 보드·절차 정리(입력 레벨, VDDA·VDDW 순서, 보존·읽기·쓰기 실험 순서, 방향 보기 읽기는 DIN = 0)
