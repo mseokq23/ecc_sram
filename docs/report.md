@@ -14,8 +14,8 @@
 | 칩 전체 규칙 검사 | 공식 DRC 0, Calibre 전용 73규칙 0, 안테나 0, 코어 LVS 일치(3,982 소자 · 1,909 넷) |
 | 논리 시험 | 칩 코어 논리 235,865회 비교 통과, 복호 블록 입력 2,048가지 전수 통과 |
 | 트랜지스터 수준 모의 | 코어 전체 추출, 4개 조건(TT, SS 125 °C, FF 0 °C, VDDA·VDDW 2 V)에서 읽기 25번 모두 ECC 모델과 같음 |
-| 재현성 | 저장소를 새로 받아 다시 만든 GDS와 최종 GDS가 19개 층 모두 XOR 0 |
-| 제출 파일 | `ecc_sram_Top.zip` 1,029,331 B(안에 `ecc_sram_Top.gds`), sha256 `842d412f…7622d8` |
+| 재현성 | 최종 GDS는 GitHub Codespaces(IIC-OSIC-TOOLS 2026.10)에서 소스로부터 다시 만든 것이고, 로컬 도구로 만든 이전 GDS와 19개 층 모두 XOR 0 |
+| 제출 파일 | `ecc_sram_Top.zip` 1,016,765 B(안에 `ecc_sram_Top.gds`), sha256 `cba3cc29…c27334` |
 
 최종 파일은 [`designs/etri050/chip/final/`](../designs/etri050/chip/final)에 있다. 사양은 [spec.md](spec.md), 단계별 검증 기록은 [verification.md](verification.md), 결과물 보는 법은 [guide.md](guide.md)에 있다.
 
@@ -105,7 +105,7 @@
 
 ## 설계 흐름과 도구
 
-모든 단계를 오픈소스 도구로 했고, 소스에서 블록과 칩을 다시 만들어 모든 검사를 돌리는 `chip/check_all.sh`가 최종 GDS를 저장한다(2-core에서 약 7분). 환경은 ETRI 0.5 µm 오픈소스 디자인 킷(4b332a7, 2026-11-02)과 PDK 260820이다.
+모든 단계를 오픈소스 도구로 했고, 소스에서 블록과 칩을 다시 만들어 모든 검사를 돌리는 `chip/check_all.sh`가 최종 GDS를 저장한다. 최종 GDS는 GitHub Codespaces(IIC-OSIC-TOOLS 2026.10)에서 만들었고(전체 재검사 약 9분), 환경은 ETRI 0.5 µm 오픈소스 디자인 킷(7de18ad, 2026-11-10. 4b332a7 뒤로 덱·셀·모델은 그대로)과 PDK 260820이다.
 
 | 단계 | 방법 | 도구 |
 |---|---|---|
@@ -115,7 +115,7 @@
 | 패드 링 | 킷 28핀 템플릿 자리에 ETRI GPIO 원본 셀(250610)을 넣음(`chip/pad_gds.py`) | Magic, KLayout |
 | 칩 조립 | 블록 배치, 위 채널 metal3 배선, 전원 띠(`chip/assemble.py`) | KLayout 파이썬 |
 | 회로 모의 | PDK 260820 모델(`05cmos_mosfet_corner.lib`, TT·SS·FF·SF·FS) | ngspice-42 |
-| 검사 | 공식 규칙 KLayout 덱, Calibre 전용 73규칙, 규칙 문서 금속·안테나 규칙, LVS, 제출 GDS 검사 | KLayout 0.28.16, Magic 8.3.105, Netgen 1.5.133 |
+| 검사 | 공식 규칙 KLayout 덱, Calibre 전용 73규칙, 규칙 문서 금속·안테나 규칙, LVS, 제출 GDS 검사 | 최종: KLayout 0.30.12, Magic 8.3.685, Netgen 1.5.324(Codespaces). 설계 중: KLayout 0.28.16, Magic 8.3.105, Netgen 1.5.133 |
 
 표준셀 합성에서는 셀 안 metal2 간격이 규칙(1.0 µm)보다 좁은 XOR2X1·XNOR2X1·FAX1·HAX1·LATCH·TBUF를 뺐다. 두 블록은 같은 설정으로 다시 돌리면 같은 도형이 나온다.
 
@@ -161,11 +161,11 @@
 
 | 파일 | 내용 |
 |---|---|
-| `ecc_sram_Top.zip` | 제출 파일. 안에 압축하지 않은 `ecc_sram_Top.gds` 하나. 1,029,331 B, sha256 `842d412f…7622d8` |
-| `ecc_sram_Top.gds.gz`, `.sha256` | 최종 GDS(최상위 셀 `ecc_sram_Top`). 압축 전 4,744,300 B, sha256 `73fd2967…5cccb4` |
+| `ecc_sram_Top.zip` | 제출 파일. 안에 압축하지 않은 `ecc_sram_Top.gds` 하나. 1,016,765 B, sha256 `cba3cc29…c27334` |
+| `ecc_sram_Top.gds.gz`, `.sha256` | 최종 GDS(최상위 셀 `ecc_sram_Top`). 압축 전 4,742,062 B, sha256 `14540645…72a1eb` |
 | `check_report.txt` | 이 GDS를 만든 전체 재검사 기록, 모두 통과 |
 | `ecc_sram_Top_gds_check.txt` | zip을 만든 제출 GDS 검사 기록 |
-| `DRC_ecc_sram_Top.png`, `LVS_ecc_sram_core.png` | 신청서용 DRC·LVS 결과 화면 |
+| `DRC_ecc_sram_Top.png`, `LVS_ecc_sram_core.png` | 신청서용 DRC·LVS 결과 화면(Codespaces에서 캡처) |
 
 형식은 킷에 있는 2026년 3차 칩 4개(bricks_out, dino_run, invaders, pong_vh)와 제작된 pong_pt1(2025)을 같은 검사기로 비교해 맞추었다. 칩 범위 97.5–1802.5 µm, 스크라이브 레인 비움, CHIPBOUNDARY·실링 없음, 본딩 패드가 MPW_PAD_28pin과 XOR 0, GPIO 원본 셀, 최상위 라벨 없음이 선례와 같다.
 

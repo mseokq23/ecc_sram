@@ -34,7 +34,7 @@ ecc_sram_Top
 |---|---|
 | 설계명 | 저전압 SRAM 오류 실측을 위한 결함 주입·방향 인지 ECC 8T SRAM |
 | 설계 DB 파일명 (Top Cell 명) | `ecc_sram_Top.zip` (Top Cell `ecc_sram_Top`) |
-| 설계 사용 Tool | Magic 8.3, KLayout 0.28, Netgen 1.5, ngspice 42, Yosys 0.33, qflow(GrayWolf, Qrouter), Icarus Verilog 12 (오픈소스) |
+| 설계 사용 Tool | Magic 8.3, KLayout 0.30, Netgen 1.5, ngspice 42, Yosys 0.33, qflow(GrayWolf, Qrouter), Icarus Verilog 12 (오픈소스) |
 | 표준칩 배치 (MPW_PAD_28pin) | 사용 (본딩 패드 28개가 `MPW_PAD_28pin.gds`와 XOR 0) |
 | 제공한 PDK의 GPIO | 사용: PIC 15, POB8 6, PVDD 2, PVSS 3, PANA 2(VDDA·VDDW, PADR 포트), PCORNER 4, IOFILLER50 8 |
 | 칩 제공 형태 | 28pin-SOP 패키지 (only) |
@@ -303,11 +303,11 @@ unzip -p designs/etri050/chip/final/ecc_sram_Top.zip ecc_sram_Top.gds | sha256su
 python3 scripts/mychip_gds_check.py designs/etri050/chip/final/ecc_sram_Top.gds --top ecc_sram_Top \
     --zip designs/etri050/chip/build/ecc_sram_Top.zip --report designs/etri050/chip/build/ecc_sram_Top_gds_check.txt
 
-# 소스에서 블록과 칩을 다시 만들고 모든 검사 (2-core에서 약 7분) → designs/etri050/chip/build/check_report.txt
+# 소스에서 블록과 칩을 다시 만들고 모든 검사 (2-core에서 7–9분) → designs/etri050/chip/build/check_report.txt
 bash designs/etri050/chip/check_all.sh
 
 # 다시 만든 GDS와 최종 GDS의 도형 비교: 층마다 XOR 면적이 0이면 같은 칩
-# (GDS 머리의 날짜가 달라 sha256은 다르게 나온다)
+# (GDS 머리의 날짜가 달라 sha256은 다르게 나온다. Magic 8.3.105로 만들면 블록 안 포트 이름 글자 55개도 더 들어간다)
 klayout -b -r scripts/gds_xor.py -rd a=designs/etri050/chip/build/ecc_sram_Top.gds \
     -rd b=designs/etri050/chip/final/ecc_sram_Top.gds
 
