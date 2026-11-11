@@ -48,7 +48,7 @@ designs/etri050/
   gen/sram8t.py           8T 셀과 어레이 레이아웃 생성기(Magic), 비교용 넷리스트
   gen/colper.py           어레이 아래 컬럼 회로, 어레이와 합친 SRAM 매크로(sram_macro)
   gen/decap.py            VDDW·VDDA 디커플링(MOS 커패시터)
-  sim/cell/               셀·컬럼 트랜지스터 수준 모의(코너, 보존 전압, 읽기 Vmin, 보존 시간)
+  sim/cell/               셀·컬럼 트랜지스터 수준 모의(코너, 보존 전압, 읽기 Vmin, 보존 시간, 쓰기 실패 방향)
   sim/post/array_post.py  그린 어레이(또는 --macro: 매크로 전체)를 추출해 쓰기·읽기 모의
   ctrl/                   제어 블록 ecc_fi_ctrl과 복호 블록 ecc_dec: RTL, 테스트벤치, 합성, qflow 배치·배선, 매크로 고정
   ctrl/macro/             고정한 두 블록(GDS, 넷리스트, 핀 좌표)
@@ -98,6 +98,7 @@ python3 designs/etri050/sim/cell/sweep_vdda.py             # 읽기 Vmin(VDDA), 
 python3 designs/etri050/sim/cell/drv_butterfly.py nominal  # 유지 SNM, 보존 전압(코너)
 python3 designs/etri050/sim/cell/drv_mc_small.py TT 27 200 12 15   # 보존 전압 퍼짐(Vt 불일치 가정)
 python3 designs/etri050/sim/cell/retention_time.py         # VDDA를 낮춘 채 버티는 시간
+python3 designs/etri050/sim/cell/write_dir.py              # VDDW를 낮췄을 때 쓰기 실패 방향(0 → 1만)
 
 # 어레이 후모의(컬럼 회로는 회로도), 매크로 후모의(그린 컬럼 회로)
 python3 designs/etri050/sim/post/array_post.py
