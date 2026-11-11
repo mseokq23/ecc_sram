@@ -6,9 +6,10 @@ assemble.py) against the circuit it was built from.
 
 Layout side: the core GDS is flattened and its block labels are removed; the pad cells' core-side ports
 (metal2 rectangles from pad_pins.json) are drawn in and labelled with the pad's pin name (pins.csv), so the
-core wiring must reach each port. The pad ring's VDD rail, which joins the two VDD pads on the chip, is drawn
-in as a metal2 path outside the core (see layout_gds). Magic reads it with the kit's ETRI GDS style, extracts
-every device and writes a flat netlist.
+core wiring must reach each port. Magic reads it with the kit's ETRI GDS style, extracts every device and
+writes a flat netlist. A supply with several pads that the core does not join itself (VDD N4 and S7, VSS E4)
+is joined by the pad ring; that is checked on the pad ring's own metal (ring_supplies) and the supply's pads
+are then one node in the netlist (merge_supplies).
 Reference side, written from the design and not from the drawing:
   control block   ctrl/macro/ecc_fi_ctrl.spc + the kit's standard cell netlist (khu_etri050_stdcells.spice)
   decoder block   ctrl/macro/ecc_dec.spc (the same cells); its inputs are the control block's R, VIEW, V_DIR,
@@ -57,41 +58,10 @@ def layout_gds():
         top.shapes(m2).insert(kdb.Box(x1, y1, x2, y2))
         top.shapes(m2).insert(kdb.Text(name, kdb.Trans(kdb.Vector((x1 + x2) // 2, (y1 + y2) // 2))))
         names.add(name)
-    pad_ring_vdd(top, m2, pads)
     L.mkdir(parents=True, exist_ok=True)
     out = L / "ecc_sram_core_lvs.gds"
     ly.write(str(out))
-    return out, sorted(names)
-
-
-def pad_ring_vdd(top, m2, pads):
-    """Draw the pad ring's VDD rail between the two VDD pads (N4 above the core, S7 below it).
-
-    The core feeds the control and decoder blocks from N4 and the macro from S7 and does not join the two
-    itself (assemble.py); on the chip the VDD bus that runs through the ETRI pad cells joins them. Without
-    this rail the extraction sees two VDD nodes: Magic 8.3.105 merged them by their label name, Magic 8.3.685
-    (IIC-OSIC-TOOLS 2026.10) keeps them apart (VDD_uq0). A VDD part that reaches neither pad still stays a
-    separate node.
-    """
-    um = 1000
-    vdd = sorted((p for p in pads if p["cell"] == "PVDD"), key=lambda p: p["side"])
-    if [p["side"] for p in vdd] != ["N", "S"]:
-        sys.exit(f"expected one VDD pad above and one below the core: {[p['pad'] for p in vdd]}")
-    n, s = ([round(v * um) for v in p["rect"]] for p in vdd)
-    before = kdb.Region(top.begin_shapes_rec(m2))
-    bb, w = top.bbox(), 4 * um
-    yt, yb, xr = bb.top + 6 * um, bb.bottom - 6 * um - w, bb.right + 6 * um
-    nx, sx = (n[0] + n[2]) // 2, (s[0] + s[2]) // 2
-    ring = kdb.Region()
-    ring.insert(kdb.Box(nx - w // 2, n[1], nx + w // 2, yt + w))      # up from the N pad port
-    ring.insert(kdb.Box(nx - w // 2, yt, xr + w, yt + w))             # east above the core
-    ring.insert(kdb.Box(xr, yb, xr + w, yt + w))                      # down east of the core
-    ring.insert(kdb.Box(sx - w // 2, yb, xr + w, yb + w))             # west below the core
-    ring.insert(kdb.Box(sx - w // 2, yb, sx + w // 2, s[3]))          # up into the S pad port
-    ports = kdb.Region([kdb.Box(*n), kdb.Box(*s)])
-    if not ((ring - ports).sized(um) & (before - ports)).is_empty():
-        sys.exit("the drawn VDD rail comes within 1 um of other metal2")
-    top.shapes(m2).insert(ring.merged())
+    return out, sorted(names), pads
 
 
 def extract(gds: Path):
@@ -112,6 +82,75 @@ quit -noprompt
     (L / "extract.log").write_text(p.stdout)
     if not (L / "ecc_sram_core.spice").exists():
         sys.exit(f"Magic did not write the netlist (see {L / 'extract.log'})")
+
+
+SUPPLY_CELLS = {"PVDD": "VDD", "PVSS": "VSS"}
+
+
+def ring_supplies(pads):
+    """Supplies with more than one pad, after checking that the pad ring's own metal joins their pads.
+
+    The core does not join every pad of a supply itself: it feeds the control and decoder blocks from the VDD
+    pad N4 and the macro from S7, and leaves the VSS pad E4 to the ring (assemble.py). On the chip the supply
+    buses that run through the ETRI pad cells join them. This reads the pad ring alone (build/ecc_sram_Pad.gds),
+    flattened, connects metal1-metal3 through the vias and requires all ports of a supply on one net and the
+    supplies on different nets.
+    """
+    groups = {}
+    for p in pads:
+        if p["cell"] in SUPPLY_CELLS:
+            groups.setdefault(SUPPLY_CELLS[p["cell"]], []).append(p)
+    ly = kdb.Layout()
+    ly.read(str(B / "ecc_sram_Pad.gds"))
+    top = ly.top_cell()
+    ly.flatten(top.cell_index(), -1, True)
+    l2n = kdb.LayoutToNetlist(kdb.RecursiveShapeIterator(ly, top, []))
+    lay = {n: l2n.make_layer(ly.layer(g, 0), n) for n, g in (("m1", 32), ("v1", 33), ("m2", 34), ("v2", 35), ("m3", 36))}
+    for x in lay.values():
+        l2n.connect(x)
+    for a, b in (("m1", "v1"), ("v1", "m2"), ("m2", "v2"), ("v2", "m3")):
+        l2n.connect(lay[a], lay[b])
+    l2n.extract_netlist()
+    net_of = {}
+    for name, ps in groups.items():
+        nets = set()
+        for p in ps:
+            x1, y1, x2, y2 = p["rect"]
+            n = l2n.probe_net(lay["m2"], kdb.DPoint((x1 + x2) / 2, (y1 + y2) / 2))
+            nets.add(n.cluster_id if n else None)
+        if None in nets or len(nets) != 1:
+            sys.exit(f"pad ring: the {name} pads {[p['pad'] for p in ps]} are not on one metal net")
+        net_of[name] = nets.pop()
+    if len(set(net_of.values())) != len(net_of):
+        sys.exit(f"pad ring: two supplies on one metal net {net_of}")
+    return {n: sorted(p["pad"] for p in ps) for n, ps in groups.items() if len(ps) > 1}
+
+
+def merge_supplies(spice: Path, names):
+    """Make the nodes Magic split off a supply (VDD_uq0, VSS_uq0, ...) that supply again.
+
+    They are pads of the supply that the pad ring joins (ring_supplies). Magic 8.3.105 joined labels of the same
+    name itself; Magic 8.3.685 (IIC-OSIC-TOOLS 2026.10) keeps them apart. A supply part that reaches no pad has
+    no label and stays a separate node.
+    """
+    if not names:
+        return []
+    pat = re.compile(r"^(%s)_uq\d+$" % "|".join(map(re.escape, names)))
+    merged, out = set(), []
+    for line in spice.read_text().replace("\n+", " ").splitlines():
+        toks = line.split()
+        new = []
+        for t in toks:
+            m = pat.match(t)
+            if m:
+                merged.add(t)
+                t = m.group(1)
+            new.append(t)
+        if new and new[0].lower() == ".subckt":
+            new = new[:2] + list(dict.fromkeys(new[2:]))
+        out.append(" ".join(new) if toks else line)
+    spice.write_text("\n".join(out) + "\n")
+    return sorted(merged)
 
 
 def bus(name):
@@ -148,12 +187,16 @@ def reference(pins):
 
 
 def main() -> int:
-    gds, pins = layout_gds()
+    gds, pins, pads = layout_gds()
     want = sorted({r["pin"] if r["cell"] not in ("PVDD", "PVSS") else {"PVDD": "VDD", "PVSS": "VSS"}[r["cell"]]
                    for r in csv.DictReader(open(HERE / "pins.csv", encoding="utf-8"))})
     if pins != want:
         sys.exit(f"pin labels {pins} differ from pins.csv {want}")
+    joined = ring_supplies(pads)
     extract(gds)
+    merged = merge_supplies(L / "ecc_sram_core.spice", list(joined))
+    print("pad ring metal joins " + ", ".join(f"{n} pads {' '.join(v)}" for n, v in joined.items())
+          + (f"; merged {', '.join(merged)}" if merged else ""))
     ref = reference(pins)
     setup = KIT / "tech/etri050_setup.tcl"
     p = subprocess.run(["netgen", "-batch", "lvs", "ecc_sram_core.spice ecc_sram_core", f"{ref.name} ecc_sram_core",
@@ -162,7 +205,7 @@ def main() -> int:
     out = (L / "core_lvs.out").read_text() if (L / "core_lvs.out").exists() else ""
     lines = [l for l in out.splitlines() if re.search(r"Number of devices|Number of nets|match|Cell pin lists", l)]
     print("\n".join(lines[-6:]))
-    ok = "Circuits match uniquely" in out or "Netlists match uniquely" in out
+    ok = ("Circuits match uniquely" in out or "Netlists match uniquely" in out) and "port errors" not in out
     print(f"core LVS: {'MATCH' if ok else 'NOT MATCHED'} (build/lvs/core_lvs.out)")
     return 0 if ok else 1
 
