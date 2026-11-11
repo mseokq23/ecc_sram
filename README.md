@@ -8,11 +8,11 @@ ETRI 0.5 µm CMOS(NSPL 2P3M 5 V) 마이칩(MyChip) 공정으로 만드는 **결�
 - **방향을 아는 복호**: 저전압 읽기·쓰기 실패는 0 → 1 한 방향이다. 읽기 모드 11의 방향 보기(FI_POS 011)는 이 방향을 알고 같은 부호·같은 저장 비트를 다시 판정해, 표준 SEC-DED가 틀린 값으로 고치는(SEC만 나오는) 한 방향 3비트 오류 112가지를 모두 검출하고 데이터 0 워드의 2비트 오류는 고친다. 복호는 코어 위쪽의 조합 논리 블록 `ecc_dec`가 한다(새 핀 없음)
 - 제출: 2026년 4차(신청서·DB 마감 12/7)
 
-사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
+**최종 보고서**: [docs/report.md](docs/report.md) — 칩의 목표, 구성, 동작, 검증 결과, 제출 준비, 측정 계획을 한 문서로 정리했다. 사양은 [docs/spec.md](docs/spec.md), 단계별 검증 기록과 판단은 [docs/verification.md](docs/verification.md).
 
-**최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`), 제출 파일 `ecc_sram_Top.zip`과 신청서용 DRC·LVS 화면도 같은 폴더에 있다. 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
+**최종 GDS**: [`designs/etri050/chip/final/ecc_sram_Top.gds.gz`](designs/etri050/chip/final) (최상위 셀 `ecc_sram_Top`, 재검사 기록 `check_report.txt`), 제출 파일 `ecc_sram_Top.zip`과 신청서용 DRC·LVS 화면도 같은 폴더에 있고, 같은 파일을 [릴리스 v1.0](https://github.com/mseokq23/ecc_sram/releases/tag/v1.0)에서도 받을 수 있다. 칩 주제, 각 부분의 기능, Codespaces에서 결과물 보는 법은 [docs/guide.md](docs/guide.md).
 
-## 진행 상황 (2026-11-08)
+## 검증 결과
 
 | 블록 | 결과 |
 |---|---|
@@ -56,7 +56,7 @@ designs/etri050/
   chip/check_all.sh       소스에서 전체를 다시 만들고 모든 검사, --save면 통과한 GDS를 chip/final에 저장
   chip/final/             최종 GDS(gzip), sha256, 재검사 기록, 제출 zip과 그 검사 기록, 신청서용 DRC·LVS 화면
   sim/chip/chip_sim.py    칩 코어 전체 트랜지스터 모의(쓰기·읽기·결함 주입·방향 보기를 ECC 모델과 비교)
-docs/                     안내(guide.md), 사양, 검증 기록, 그림(img/)
+docs/                     최종 보고서(report.md), 안내(guide.md), 사양, 검증 기록, 그림(img/)
 ```
 
 PDK 파일(모델, 덱 원본, GPIO, 패드 프레임)은 저장소에 넣지 않는다. 모델은 `scripts/get-models.sh`가 킷에 들어 있는 PDK 압축에서 꺼내고, `.gitignore`가 그 폴더를 뺀다. 표준셀은 공개 킷(GPL-3.0)의 것이고 `ctrl/macro`에는 그 셀로 만든 배치 결과만 있다.
