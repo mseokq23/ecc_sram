@@ -32,7 +32,7 @@ ecc_sram_Top
 
 | 항목 | 값 |
 |---|---|
-| 설계명 | 저전압 SRAM 오류 실측을 위한 결함 주입·방향 인지 ECC 8T SRAM |
+| 설계명 | 오류 방향을 이용해 무증상 오정정을 검출하는 ECC 8T SRAM |
 | 설계 DB 파일명 (Top Cell 명) | `ecc_sram_Top.zip` (Top Cell `ecc_sram_Top`) |
 | 설계 사용 Tool | Magic 8.3, KLayout 0.30, Netgen 1.5, ngspice 42, Yosys 0.33, qflow(GrayWolf, Qrouter), Icarus Verilog 12 (오픈소스) |
 | 표준칩 배치 (MPW_PAD_28pin) | 사용 (본딩 패드 28개가 `MPW_PAD_28pin.gds`와 XOR 0) |
@@ -183,9 +183,9 @@ SRAM은 전원 전압이 낮거나 셀이 약하면 저장한 값을 잃거나, 
 
 | 실험 | 조건 | 실패 모양 | 모의 기준값 |
 |---|---|---|---|
-| 보존 | 5 V에서 쓰고 VDDA = VDDW를 V_hold로 30 s 이상(유지 중 DIN = 쓴 데이터), 5 V로 올려 읽기 | 저장값을 잃음(셀마다 기우는 쪽, 양방향) | 보존 전압 TT 0.37 V |
+| 보존 | 5 V에서 쓰고 VDDA = VDDW를 V_hold로 30 s 이상(유지 중 FI_MODE = 00, DIN = 쓴 데이터), 5 V로 올려 읽기 | 저장값을 잃음(셀마다 기우는 쪽, 양방향) | 보존 전압 TT 0.37 V |
 | 읽기 Vmin | VDDA를 낮춘 채 읽기(VDDW = VDDA) | 0이 1로 읽힘(0 → 1만) | TT 1.42 V |
-| 쓰기 Vmin | VDDA = 5 V, VDDW를 낮추며 쓰고 5 V에서 읽기(VDDW ≥ 1 V) | 1 위에 0을 못 씀(0 → 1만) | 1.73–1.94 V(TT 27 °C 1.86 V) |
+| 쓰기 Vmin | VDDA = 5 V, VDDW를 낮추며 쓰고 5 V에서 읽기(VDDW ≥ 1 V) | 1 위에 0을 못 씀(0 → 1만) | TT 약 1.35 V, 코너 1.2–1.5 V(추출한 매크로) |
 
 보존 실험은 두 패턴(값과 반전)을 모두 본다. 읽기·쓰기 Vmin 실험에서는 같은 워드를 정상 읽기, 방향 보기(FI_POS 011), 원시 보기 두 반쪽으로 잇달아 읽어 맞음·검출·무증상 오류로 나눈다(워드마다 다른 데이터, VDDA 1 mV 단계). 자세한 절차는 [spec.md](spec.md)의 측정 계획.
 
